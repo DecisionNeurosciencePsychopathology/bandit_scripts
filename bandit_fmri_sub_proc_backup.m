@@ -6,7 +6,6 @@
 function [b,tmp_reg] = bandit_fmri_sub_proc_ad( varargin )
 % process behavioral data from variable-schedule 3-armed bandit task
 % more details at: http://bit.ly/HvBdby
-% How to use this function : [b,tmp_reg] = bandit_fmri_sub_proc_ad('id','12345')
 
 % toggle whether figures are displayed
 % fig_flag = false;
@@ -26,8 +25,6 @@ function [b,tmp_reg] = bandit_fmri_sub_proc_ad( varargin )
 % compdouble:   computerplayblank.*     FeedbackRepeatedDouble.*
 %
 % mystnorm:     mystery.*               FeedbackMystery.*
-
-
 
 
 procs.names = {'halfproc','normalproc','doubleproc', ...
@@ -75,6 +72,7 @@ for n_proc = 1:numel(procs.names)
     a.(procs.names{n_proc}) = rmfield(a.(procs.names{n_proc}),{'jitter1','jitter2'});
     
 end
+
 
 % -- organize structure and clean up vars -- %
 fprintf('reading in data...\n');
@@ -154,22 +152,6 @@ end
 
 % code missed responses
 b.missed_responses = ( b.stim_RT == 0 );
-
-
-% Create the reward stake vector
-b.stakeVec = ones(length(b.stim_RT),1); 
-for i = 1:length(b.protocol_type)
-    if (findstr(b.protocol_type{i},'norm'))
-        b.stakeVec(i) = 25;
-    elseif findstr(b.protocol_type{i},'half')
-        b.stakeVec(i) = 10;
-    else 
-        b.stakeVec(i) = 50;
-    end
-end
-
-% Create subject reward Vecotr (how much they won for specific trial)
-b.rewardVec = b.stakeVec.*b.stim_ACC;
 
 %% here you would censor trials without fMRI data
 % 1. Check the duration of scanner runs (TR*volumes)
@@ -263,41 +245,39 @@ end
 % Alex make regressor 
 
 %Make choice and feedback censors
-b.choice_censor = ~((b.stim_RT==0) + comp_index); %remove computer trials
-b.feedback_censor = ~((b.stim_RT==0) + myst_index); %remove mystery trials
+b.choice_censor = (b.stim_RT==0) + comp_index;
+b.feedback_censor = (b.stim_RT==0) + myst_index;
 
-%Create adjusted feedback if there are Nan's on feedback array, 1009 is the
-%average time from feedback_onsetTime-stim_OffsetTime
-b.adj_feedback_OnsetTime = b.feedback_OnsetTime;
-b.adj_feedback_OnsetTime(find(isnan(b.feedback_OnsetTime))) = ...
-    b.stim_OffsetTime(find(isnan(b.feedback_OnsetTime))) + 1009;
-
-%Create block length
 blck_len = scan_tr*block_length*1000;
-
 %create onset times (in scanner time)
-blk.time.onsets=eprime2ScanTime(b.stim_OnsetTime,blck_len);
+bl1onsets=b.stim_OnsetTime(1:100)-b.stim_OnsetTime(1);
+bl2onsets=b.stim_OnsetTime(101:200)-b.stim_OnsetTime(101)+blck_len;
+bl3onsets=b.stim_OnsetTime(201:end)-b.stim_OnsetTime(201)+(blck_len*2);
+blk.time.onsets=[bl1onsets' bl2onsets' bl3onsets'];
 
 %create feedback onset times (in scanner time)
-if sum(isnan(b.feedback_OnsetTime))>0
-    blk.time.feedback=eprime2ScanTime(b.adj_feedback_OnsetTime,blck_len);
-else
-    blk.time.feedback=eprime2ScanTime(b.feedback_OnsetTime,blck_len);
-end
+bl1feedonsets=b.feedback_OnsetTime(1:100)-b.feedback_OnsetTime(1);
+bl2feedonsets=b.feedback_OnsetTime(101:200)-b.feedback_OnsetTime(101)+blck_len;
+bl3feedonsets=b.feedback_OnsetTime(201:end)-b.feedback_OnsetTime(201)+(blck_len*2);
+blk.time.feedback=[bl1feedonsets' bl2feedonsets' bl3feedonsets'];
 
 %create rts (in scanner time)
 blk.time.rts=blk.time.onsets+b.stim_RT';
 
 %take RTs from trials where subject actually responded
-blk.time.goodrts=blk.time.rts(b.choice_censor);
-blk.time.goodonsets=blk.time.onsets(b.choice_censor);
-blk.time.goodfeed=blk.time.feedback(b.feedback_censor);
+blk.time.goodrts=blk.time.rts(b.stim_RT~=0);
+blk.time.goodonsets=blk.time.onsets(b.stim_RT~=0); %these guys get changed to the b.censor arrays
+blk.time.goodfeed=blk.time.feedback(b.stim_RT~=0);
 %blk.time.goodfeed(find(isnan(blk.time.goodfeed)))=[]; %remove computer trials
 
-%Make time onsets for catch trials
-blk.time.catchrts=blk.time.rts(b.stim_RT~=0);
-blk.time.catchonsets=blk.time.onsets(b.stim_RT~=0);
-blk.time.catchfeed=blk.time.feedback(b.stim_RT~=0);
+%This adds the average time it takes for the feedback_onset to occur for
+%the trials with nans (look into why this is only compdouble)
+blk.time.goodfeed(find(isnan(blk.time.goodfeed)))=...
+    b.stim_OffsetTime(find(isnan(blk.time.goodfeed)))+1008;
+
+%Remove computer trials from onsets and mystery trials from feedback
+blk.time.goodonsets(comp_index)=[];
+blk.time.goodfeed(myst_index)=[];
 
 % make reg for deliberation time: onset to RT
 decide10hz=[];
@@ -340,7 +320,7 @@ for n_stim = [2 3 7]
     action10hz=[];
     %blk.time.(['action_' num2str(n_stim)])=[];
     q_stim_id = b.stim_RESP == n_stim;
-    idx=q_stim_id(find(b.choice_censor));
+    idx=q_stim_id(find(b.stim_RT));
     for ct=1:length(blk.time.goodonsets)
         if idx(ct)==1
             int=round(blk.time.goodrts(ct)./100)-2:(round(blk.time.goodrts(ct)./100));
@@ -355,21 +335,21 @@ end
 
 %PE and EV
 blk.time.alexDeltaplus = ...
-    alexParametricRegressor(blk.time.goodfeed,blk.time.goodfeed,b.feedback_censor,blk.time.goodfeed...
+    alexParametricRegressor(blk.time.goodfeed,blk.time.goodfeed,b.stim_RT,blk.time.goodfeed...
     ,b.deltaplus,0,4);
 
 blk.time.alexDeltaminus = ...
-    alexParametricRegressor(blk.time.goodfeed,blk.time.goodfeed,b.feedback_censor,blk.time.goodfeed...
+    alexParametricRegressor(blk.time.goodfeed,blk.time.goodfeed,b.stim_RT,blk.time.goodfeed...
     ,b.deltaminus,0,4);
 
 blk.time.alexEchosen = ...
-    alexParametricRegressor(blk.time.goodonsets,blk.time.goodonsets,b.choice_censor,blk.time.goodonsets...
+    alexParametricRegressor(blk.time.goodonsets,blk.time.goodonsets,b.stim_RT,blk.time.goodonsets...
     ,b.echosen,0,5);
 
 %Alex model any valid action chosen
 tmp_RESP=b.stim_RESP~=-999; %create condition variable
 blk.time.alexAnyaction= ...
-    alexSimpleRegressor(blk.time.goodrts,blk.time.goodrts,b.choice_censor,blk.time.goodrts...
+    alexSimpleRegressor(blk.time.goodrts,blk.time.goodrts,b.stim_RT,blk.time.goodrts...
     ,tmp_RESP,-2,0);
 
 %Mean centered PE and EV in hopes to yield more powerful maps
@@ -377,78 +357,29 @@ b.echosen_MC = b.echosen - mean(b.echosen);
 b.deltaminus_MC = b.deltaminus - mean(b.deltaminus);
 b.deltaplus_MC = b.deltaplus - mean(b.deltaplus);
 
-%Mean center reward vecotr and correct incorrect
-b.rewardVec_MC = b.rewardVec - mean(b.rewardVec);
-b.correct_MC = b.stim_ACC - mean(b.stim_ACC);
-b.incorrect_MC = b.correct_MC*-1;
-
-
 blk.time.alexDeltaplus_MC = ...
-    alexParametricRegressor(blk.time.goodfeed,blk.time.goodfeed,b.feedback_censor,blk.time.goodfeed...
+    alexParametricRegressor(blk.time.goodfeed,blk.time.goodfeed,b.stim_RT,blk.time.goodfeed...
     ,b.deltaplus_MC,0,4);
 
 blk.time.alexDeltaminus_MC = ...
-    alexParametricRegressor(blk.time.goodfeed,blk.time.goodfeed,b.feedback_censor,blk.time.goodfeed...
+    alexParametricRegressor(blk.time.goodfeed,blk.time.goodfeed,b.stim_RT,blk.time.goodfeed...
     ,b.deltaminus_MC,0,4);
 
 blk.time.alexEchosen_MC = ...
-    alexParametricRegressor(blk.time.goodonsets,blk.time.goodonsets,b.choice_censor,blk.time.goodonsets...
+    alexParametricRegressor(blk.time.goodonsets,blk.time.goodonsets,b.stim_RT,blk.time.goodonsets...
     ,b.echosen_MC,0,5);
 
 %Create regs for max squared difference and sum squared difference 
 blk.time.Value_diff_best = ...
-    alexParametricRegressor(blk.time.goodonsets,blk.time.goodonsets,b.choice_censor,blk.time.goodonsets...
+    alexParametricRegressor(blk.time.goodonsets,blk.time.goodonsets,b.stim_RT,blk.time.goodonsets...
     ,b.emsd,0,5);
 
 blk.time.Value_diff_all = ...
-    alexParametricRegressor(blk.time.goodonsets,blk.time.goodonsets,b.choice_censor,blk.time.goodonsets...
+    alexParametricRegressor(blk.time.goodonsets,blk.time.goodonsets,b.stim_RT,blk.time.goodonsets...
     ,b.essd,0,5);
 
-%Convolve correct with feedback
-blk.time.alexCorrect_feed= ...
-    alexSimpleRegressor(blk.time.goodfeed,blk.time.goodfeed,b.feedback_censor,blk.time.goodfeed...
-    ,b.stim_ACC,0,4);
-
-%Convolve incorrect with feedback
-blk.time.alexError_feed= ...
-     -1.*alexSimpleRegressor(blk.time.goodfeed,blk.time.goodfeed,b.feedback_censor,blk.time.goodfeed...
-    ,~b.stim_ACC,0,4);
 
 
-
-%Convolve subject switched on next trial with feedback
-blk.time.alexSwitch_feed= ...
-     alexSimpleRegressor(blk.time.goodfeed,blk.time.goodfeed,b.feedback_censor,blk.time.goodfeed...
-    ,b.next_switch,0,4);
-
-%Convolve choice with computer trials
-blk.time.computerOnly= ...
-     alexSimpleRegressor(blk.time.catchonsets,blk.time.catchrts,b.stim_RT,blk.time.catchonsets...
-    ,comp_index,0,-1);
-
-%Convolve feedback with mystery
-blk.time.mysteryOnly= ...
-     alexSimpleRegressor(blk.time.catchfeed,blk.time.catchfeed,b.stim_RT,blk.time.catchfeed...
-    ,myst_index,0,4);
-
-%Convolve mean centered reward Vector with feedback
-blk.time.alexRewardVec_MC= ...
-    alexParametricRegressor(blk.time.goodfeed,blk.time.goodfeed,b.feedback_censor,blk.time.goodfeed...
-    ,b.rewardVec_MC,0,4);
-
-%Convolve mean centered correct with feedback
-blk.time.alexCorrectFeed_MC= ...
-    alexParametricRegressor(blk.time.goodfeed,blk.time.goodfeed,b.feedback_censor,blk.time.goodfeed...
-    ,b.correct_MC,0,4);
-
-%Convolve mean centered incorrect with feedback
-blk.time.alexInCorrectFeed_MC= ...
-    alexParametricRegressor(blk.time.goodfeed,blk.time.goodfeed,b.feedback_censor,blk.time.goodfeed...
-    ,b.incorrect_MC,0,4);
-
-%I'm not sure if this is right but combine correct and incorrect by simply adding?
-blk.time.alexErrorNegative1Correct1= ...
-     blk.time.alexCorrect_feed+blk.time.alexError_feed;
 
 %---------------------------------------------------------------------------------------------------------
     
@@ -760,15 +691,6 @@ gdlmwrite(sprintf('bandit%d.regs',id),[b.hrf_regs.to_censor' ... %0 trials with 
     b.hrf_regs.alexEchosen_MC' ...%30 Mean centered EV
     b.hrf_regs.Value_diff_best' ...%31 best value squared difference 
     b.hrf_regs.Value_diff_all' ...%32 trial-wise sum squared difference
-    b.hrf_regs.alexCorrect_feed' ...%33 correct=1 incorrect=0
-    b.hrf_regs.alexError_feed' ...%34 correct=0 incorrect = -1
-    b.hrf_regs.alexSwitch_feed' ...%35 subject switched on next trial
-    b.hrf_regs.computerOnly' ...%36 Computer only trials aligned with choice
-    b.hrf_regs.mysteryOnly' ...%37 Mystery only trials aligned with feedback
-    b.hrf_regs.alexRewardVec_MC' ...%38 Stake interaction aligned with feedback
-    b.hrf_regs.alexCorrectFeed_MC' ...%39 Mean centered correct aligned with feedback
-    b.hrf_regs.alexInCorrectFeed_MC' ...%40 Mean centered incorrect aligned with feedback
-    b.hrf_regs.alexErrorNegative1Correct1' ...%41 incorrect = -1 correct = 1;
     
     ],'\t');
 
@@ -987,12 +909,4 @@ end
 
 foo = tmp;
 
-return
-
-function foo = eprime2ScanTime(epoch,blen)
-%create onset times (in scanner time)
-bl1onsets=epoch(1:100)-epoch(1);
-bl2onsets=epoch(101:200)-epoch(101)+blen;
-bl3onsets=epoch(201:end)-epoch(201)+(blen*2);
-foo=[bl1onsets' bl2onsets' bl3onsets'];
 return

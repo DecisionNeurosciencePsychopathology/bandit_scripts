@@ -355,7 +355,7 @@ plot(emsd3)
 hold on
 plot(essd3,'r')
 
-figure(14)
+figure(14) %plotting the expected values for each block and the sum squared + best value models
 subplot(2,1,1)
 plot(s.prob.e1)
 hold on
@@ -385,3 +385,8 @@ for i = 2:length(names)+1
         CovMat{i,j} = r(i-1,j-1);
     end 
 end
+
+
+%% Finding average onset time for feedback display
+gg=~isnan(b.feedback_OnsetTime);
+mean(b.feedback_OnsetTime(gg)-b.stim_OffsetTime(gg))

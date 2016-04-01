@@ -132,13 +132,20 @@ C_right_idx(find(cellfun(@(x) isequal(x, 'C'), design.rightstim)))=1;
 %     end
 % end
 
+%Alex and I, (mostly Alex) made a new reward schedule which is why there is
+%a new.Arew. Typically though you can just have new.Arew = design.Arew if
+%something went haywire and you need to reset the reinforcement schedule
+
+new.Arew = design.Arew;
+new.Brew = design.Brew;
+new.Crew = design.Crew;
+
 
 %when the top is correct
 new.reinforced1 = (A_top_idx(~isnan(new.Arew)) & new.Arew(~isnan(new.Arew))) | ...
     (B_top_idx(~isnan(new.Arew)) & new.Brew(~isnan(new.Arew))) | ...
     (C_top_idx(~isnan(new.Arew)) & new.Crew(~isnan(new.Arew)));
 new.reinforced1 = 7.*new.reinforced1;
-
 
 new.reinforced2 = (A_left_idx(~isnan(new.Arew)) & new.Arew(~isnan(new.Arew))) | ...
     (B_left_idx(~isnan(new.Arew)) & new.Brew(~isnan(new.Arew))) | ...
@@ -150,11 +157,17 @@ new.reinforced3 = 3.*(A_right_idx(~isnan(new.Arew)) & new.Arew(~isnan(new.Arew))
     (C_right_idx(~isnan(new.Arew)) & new.Crew(~isnan(new.Arew)));
 new.reinforced3 = 3.*new.reinforced3;
 
-save new_correct_use_this_one new
+save correct_block_design
 
 new.nanny_reinforced1 = [new.reinforced1(1:100); NaN; new.reinforced1(101:200); NaN; new.reinforced1(201:end)];
 new.nanny_reinforced2 = [new.reinforced2(1:100); NaN; new.reinforced2(101:200); NaN; new.reinforced2(201:end)];
 new.nanny_reinforced3 = [new.reinforced3(1:100); NaN; new.reinforced3(101:200); NaN; new.reinforced3(201:end)];
+
+%For practice trials only
+%save correct_block_design_practice
+%new.nanny_reinforced1 = [new.reinforced1(1:52); NaN; new.reinforced1(53:end)];
+%new.nanny_reinforced2 = [new.reinforced2(1:52); NaN; new.reinforced2(53:end)];
+%new.nanny_reinforced3 = [new.reinforced3(1:52); NaN; new.reinforced3(53:end)];
 
 new.topstim = design.topstim;
 new.leftstim = design.leftstim;
@@ -162,5 +175,8 @@ new.rightstim = design.rightstim;
 fprintf(sprintf('topstim'),cell2mat(new.topstim));
 
 dlmwrite(sprintf('new_design_012315'),[new.Arew new.Brew new.Crew new.nanny_reinforced1 new.nanny_reinforced2 new.nanny_reinforced3],'\t');
+
+%Practice Only
+%dlmwrite(sprintf('new_pract_design_21115'),[new.Arew new.Brew new.Crew new.nanny_reinforced1 new.nanny_reinforced2 new.nanny_reinforced3],'\t');
 
 
