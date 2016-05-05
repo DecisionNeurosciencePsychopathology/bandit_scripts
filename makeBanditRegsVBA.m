@@ -1,4 +1,4 @@
-dirs=dir('bandit_raw');
+dirs=dir('data/raw');
 %If you want to check the names
 %dirs(3:end).name
 

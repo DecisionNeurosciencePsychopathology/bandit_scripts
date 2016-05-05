@@ -8,9 +8,11 @@ frequency_scale_hz = 10;
 scan_tr = .75;
 block_length = 925; %But its really 925 ask Alex!
 b.stim_NextOnsetTime=[b.stim_OnsetTime(2:end); b.stim_RTTime(end)];
-b.missed_responses = ( b.stim_RT == 0 ); 
-%Or this?
-%b.missed_responses = ( b.chosen_stim == 999 ); %Includes wrong button presses and rt == 0
+%b.missed_responses = ( b.stim_RT == 0 ); %Only included no responses
+b.missed_responses = ( b.chosen_stim == 999 ); %Includes wrong button presses and rt == 0
+b.trials_to_censor = b.missed_responses;
+%b.trials_to_censor(b.rewardVec==0) = 1; %Adding in the trials in which there was no reward as well.
+
 for block_n = 1:num_blocks
         %Set up trial ranges
     trial_index_1 = b.trial_index(block_n);
@@ -22,7 +24,7 @@ for block_n = 1:num_blocks
     
     
     tmp_reg.(['regressors' num2str(block_n)]).to_censor = ...
-        createSimpleRegressor(event_beg, event_end, epoch_window, b.missed_responses(trial_index_1:trial_index_2));
+        createSimpleRegressor(event_beg, event_end, epoch_window, b.trials_to_censor(trial_index_1:trial_index_2));
     tmp_reg.(['regressors' num2str(block_n)]).to_censor = ones(size(tmp_reg.(['regressors' num2str(block_n)]).to_censor)) - tmp_reg.(['regressors' num2str(block_n)]).to_censor;
     
     
