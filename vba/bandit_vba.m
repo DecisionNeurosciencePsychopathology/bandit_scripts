@@ -1,4 +1,4 @@
-function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,save_results)
+function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,utility,save_results)
 
 %% fits BANDIT rl model to 3 armed bandit subject data using VBA toolbox
 % example call:
@@ -11,6 +11,7 @@ function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,
 %%
 close all
 
+
 if nargin<2
     graphics=0;
     plot_subject=0;
@@ -21,7 +22,7 @@ end
 
 
 %I think it would be easier just to not make this an argument
-use_reward_vec = 0;
+use_reward_vec = 1;
 
 
 %% Where to look for data
@@ -36,6 +37,12 @@ if save_results
     end
 end
 
+%Evolution options
+options.inF.utility = 0;
+options.inF.valence = 0;
+options.inF.decay = 0;
+
+
 %Turn graphics on or off
 if ~graphics
     options.DisplayWin = 0;
@@ -47,8 +54,13 @@ if valence
     options.inF.valence = 1;
 else
     n_theta = 2;
-    options.inF.valence = 0;
 end
+
+if utility
+    n_theta = n_theta +1; %Add in steepness parameter
+    options.inF.utility = 1;
+end
+
 
 if ~decay
     n_theta = n_theta-1;
@@ -80,7 +92,7 @@ end
 u = [zeros(size(u,1),1) u(:,1:end-1)]; %Shift the u!
 
 
-y = zeros(n_theta, n_t);
+y = zeros(3, n_t);
 for i = 1:n_t
     try
         y(subjects_actions(i), i) = 1;
@@ -119,6 +131,11 @@ dim = struct('n',n_hidden_states,'n_theta',n_theta,'n_phi',n_phi, 'n_t', n_t);
 %% priors
 priors.muPhi = zeros(dim.n_phi,1);
 priors.muTheta = zeros(dim.n_theta,1);
+
+if utility
+    priors.muTheta(end) = -2;
+end
+
 priors.muX0 = zeros(n_hidden_states,1);
 priors.SigmaTheta = 1e1*eye(dim.n_theta);
 %priors.SigmaPhi = diag([1,1,1]);
@@ -258,6 +275,19 @@ out.suffStat.stake = b.stakeVec';
 out.suffStat.stake(b.stakeVec==10)=1;
 out.suffStat.stake(b.stakeVec==25)=2;
 out.suffStat.stake(b.stakeVec==50)=3;
+
+
+%Percentages of reward magnitude and staying
+stop=0;
+out.suffStat.rew10_trials = find(b.rewardVec==10);
+out.suffStat.rew50_trials = find(b.rewardVec==50);
+error_code = 999; %If they missed a trial, ie don't want two zeros in a row to count...
+out.suffStat.stay_trials  = find(logical([1; b.chosen_stim(2:end)==b.chosen_stim(1:end-1)]) & b.chosen_stim~=error_code);
+out.suffStat.stay_10 = ismember(out.suffStat.stay_trials,out.suffStat.rew10_trials);
+out.suffStat.stay_50 = ismember(out.suffStat.stay_trials,out.suffStat.rew50_trials);
+out.suffStat.stay_10_prob = sum(out.suffStat.stay_10)./length(out.suffStat.rew10_trials);
+out.suffStat.stay_50_prob = sum(out.suffStat.stay_50)./length(out.suffStat.rew50_trials);
+out.suffStat.diff_10_50_prob = out.suffStat.stay_10_prob - out.suffStat.stay_50_prob;
 
 if save_results
     file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec',id,use_reward_vec);

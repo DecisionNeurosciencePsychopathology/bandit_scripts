@@ -5,6 +5,7 @@ fprintf('\nCreating subject specific regressor files\n\n');
 
 data_dump_str = strcat('E:\data\bandit\regs\', num2str(b.id));
 b.regs = [];
+b.rew_trials_only = 0;
 n_t = length(b.stim_ACC); %Length of trials
 total_blocks = 3;
 b.trials_per_block = n_t/total_blocks;
@@ -123,6 +124,27 @@ plusMinusPE=(out.suffStat.PEplus+out.suffStat.PEminus*-1)'; %Combine the two int
 %% Trial length regressors
 [b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,trial.event_beg,trial.event_end,'rewardMagnitudeTrialAligned',out.suffStat.reward_stake',0,b);
 
+
+%% Investigating only the rewarded trials
+%Using the model dated in April 29 2106
+%Reward only trials
+stim_ACC = logical(b.stim_ACC);
+b.rew_trials_only = 1;
+% decision.event_beg_rew_only = decision.event_beg(stim_ACC);
+% decision.event_end_rew_only = decision.event_end(stim_ACC);
+% feedback.event_beg_rew_only = feedback.event_beg(stim_ACC);
+% feedback.event_end_rew_only = feedback.event_end(stim_ACC);
+
+write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'decision_Times_rew_trials_only',b.choice_censor,0,b);
+write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'feedback_Times_rew_trials_only',b.feedback_censor,0,b);
+write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'stakeDecisionAligned_rew_trials_only',out.suffStat.stake',0,b);
+write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'rewardMagnitudeFeedbackAligned_rew_trials_only',out.suffStat.reward_stake',0,b);
+write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen_diff_standardized_rew_trials_only',out.suffStat.value_chosen_diff_standardized',0,b);
+write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEs_rew_trials_only',out.suffStat.PEchosen',0,b);
+write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'left_rew_trials_only',b.left,0,b);
+b.rew_trials_only = 0;
+
+
 %% Censor file
 gdlmwrite([data_dump_str 'banditCensorOnly.regs'],b.hrf_regs.to_censor');
 
@@ -177,6 +199,15 @@ for i = 1:length(b.trial_index)
     trial_index_1 = b.trial_index(i);
     trial_index_2 = trial_index_1 + b.trials_per_block-1;
     block_data = num2cell(x(trial_index_1: trial_index_2,:));
+    
+    %If we want rew trials only -- note I really hate how I did this...
+    if b.rew_trials_only
+        filter = b.stim_ACC;
+        filter(filter==0) = nan;
+        block_data(1:b.trials_per_block,4) = num2cell(filter(trial_index_1: trial_index_2,:));
+        ast = {'*', '*', '*', '*'};
+    end
+    
     if i<length(b.trial_index)
         c = [c; block_data; ast];
     else
@@ -184,10 +215,18 @@ for i = 1:length(b.trial_index)
     end
 end
 
+
+
 %clean up any nans
 %fh = @(y) all(isnan(y(:)));
 c = c(~any(cellfun(@isnan,c),2),:);
 %c(cellfun(fh, c)) = [];
 %Check on c!
+
+%Remove extra column
+ if b.rew_trials_only
+    c(:,4) = [];
+ end
+
 
 return
