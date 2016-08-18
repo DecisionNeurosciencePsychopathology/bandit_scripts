@@ -73,9 +73,10 @@ for sub=1:length(numlist)
         % enter descriptive field info
         % -- not done yet --
         
-        %Run credit assignment
-        ball = credit_assignment(ball);
-        
+        %Run credit assignment -- do this last!
+        if sub==length(numlist)
+            ball = credit_assignment(ball);
+        end
         % save it
         save([data_dir 'bandit_data'],'ball');
         

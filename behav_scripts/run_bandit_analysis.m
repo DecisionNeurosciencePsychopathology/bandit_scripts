@@ -8,13 +8,22 @@ function q = run_bandit_analysis (varagin)
 %NOTE: Double check on credit schedule this one is pulled from the the L
 %drive, and it's pretty old.
 
+
+%DISCLAIMER!! Just for kicks I went line by line to make this work for
+%groups 1-5 groups 1-7 will need more tweeking as they are returned as
+%strings from the demographics file. Also I took out lose switches and
+%correct choice from the analysis as they were not exsisting for some
+%reason. And you don't have to do the credit assignment as that is already
+%in ball at the time of wrting this. -JW
+
+
 %This was just while I was debugging the code
 clc
 close all
 
 %Load  in data
 try
-    load('c:\kod\Neuropsych_preproc\matlab\analysis\bandit\data\bandit_data.mat')
+    load('data\bandit_data.mat')
 catch
     disp('Can''t find bandit data, please locate the bandit data file')
     [FileName,PathName,FilterIndex] = ...
@@ -26,14 +35,14 @@ end
 ball = find_demog_by_id(ball);
 
 %Run model to get EV and other metrics
-ball = bandit_rl_model(ball,1,0);
-
-ball = credit_assignment(ball); %takes about 22 seconds to run demog + rlmodel + credit assignment
+% ball = bandit_rl_model(ball,1,0);
+% 
+% ball = credit_assignment(ball); %takes about 22 seconds to run demog + rlmodel + credit assignment
 
 %Decide which group to investigate 1 = 1-5 2 = 1-7
-group_type = 2;
-group_num = ball.group_17;
-groups = [1 2 4 5 6 7];
+group_type = 1;
+group_num = ball.group_15;
+groups = [1 2 4 5];
 
 if group_type ==1
     %     group_num = ball.group_15;
@@ -51,7 +60,8 @@ end
 
 %Add tags to group numbers
 %groups = unique(ball.group_15);
-group_names = {'CON'; 'DEP'; 'IDE'; 'ATT'; 'LOWLETH'; 'HIGHLETH'};
+%group_names = {'CON'; 'DEP'; 'IDE'; 'ATT'; 'LOWLETH'; 'HIGHLETH'};
+group_names = {'CON'; 'DEP'; 'IDE'; 'ATT';};
 
 %Calc overall percent correct for entire trial, pre-reversal, and
 %post-reversal, same for win-switch errors
@@ -64,7 +74,7 @@ for i = 1:length(ball.id)
     win_switch_error_prereversal(i,1) = sum(ball.behav(1,i).errors.before.spont_switch_err)/trial_length;
     win_switch_error_postreversal(i,1) = sum(ball.behav(1,i).errors.after.spont_switch_err)/trial_length;
     %Add this to the errors sub group later--possibly
-    lose_switch_error(i,1) = sum(ball.behav(1,i).lose_switch);
+    %lose_switch_error(i,1) = sum(ball.behav(1,i).lose_switch);
     
     %Credit assignment - Backward spread
     Ax1B(i,1) = ball.behav(1,i).back_output.diffAgivena1x;
@@ -78,9 +88,9 @@ for i = 1:length(ball.id)
     AAAARB(i,1) = ball.behav(1,i).for_output.diffAgiven_n_2;
     
     %Correct choices based on stimulus probability
-    correct_choice(i,1) = ball.behav(1,i).correct_choice;
-    correct_choice_prereversal(i,1) = ball.behav(1,i).correct_choice_prereversal;
-    correct_choice_postreversal(i,1) = ball.behav(1,i).correct_choice_postreversal;
+    %correct_choice(i,1) = ball.behav(1,i).correct_choice;
+    %correct_choice_prereversal(i,1) = ball.behav(1,i).correct_choice_prereversal;
+    %correct_choice_postreversal(i,1) = ball.behav(1,i).correct_choice_postreversal;
     
     
 end
@@ -88,16 +98,15 @@ end
 %Temporary data matrix
 bandit_stats = [ball.id group_num percent_correct percent_correct_prereversal ...
     percent_correct_postreversal win_switch_error ...
-    win_switch_error_prereversal win_switch_error_postreversal lose_switch_error...
+    win_switch_error_prereversal win_switch_error_postreversal ...
     Ax1B Ax23B Ax47B ARAAAB...
-    AARAAB AAARAB AAAARB correct_choice correct_choice_prereversal correct_choice_postreversal];
+    AARAAB AAARAB AAAARB ];
 
 %Names of all variables in the bandit stats matrix
 bandit_stats_names = {'id' 'group number' 'percent_correct' 'percent_correct_prereversal'...
     'precent_correct_postreversal' 'win_switch_error' 'win_switch_error_prereversal'...
-    'win_switch_error_postreversal' 'lose_switch_error' 'Ax1B' 'Ax23B' 'Ax47B'...
-    'ARAAAB' 'AARAAB' 'AAARAB' 'AAAARB' 'correct_choice' 'correct_choice_prereversal'...
-    'correct_choice_postreversal'};
+    'win_switch_error_postreversal'  'Ax1B' 'Ax23B' 'Ax47B'...
+    'ARAAAB' 'AARAAB' 'AAARAB' 'AAAARB' };
 
 %Print out some data...think you could just use fprintf?
 str=sprintf('\nOverall percent correct is: %.2f\n', mean(percent_correct)*100);
@@ -106,14 +115,14 @@ str = sprintf('Overall percent by group is..\n');
 disp(str)
 
 %Plot lose switches Overall for all subjects
-figure(88)
-clf
-hist(bandit_stats(:,9))
-title('Lose switches for all subjects')
+% figure(88)
+% clf
+% hist(bandit_stats(:,9))
+% title('Lose switches for all subjects')
 
 
 %Load design file
-design_struct = bandit_tablet_load_design;
+design_struct = bandit_fmri_load_design;
 
 %Create group struct
 group_struct = struct;
@@ -179,10 +188,10 @@ for i = 1:length(group_names)
     plot_credit_assignment(group_struct,group_names,i)
     
     %Histograms for lose switches
-    figure(42)
-    subplot(2,3,i)
-    hist(bandit_stats(idx,9))
-    title(['Lose switches per group ' (group_names{i})])
+%     figure(42)
+%     subplot(2,3,i)
+%     hist(bandit_stats(idx,9))
+%     title(['Lose switches per group ' (group_names{i})])
     
     %Plot histograms for credit assignments
     credit_index=find(~cellfun('isempty', strfind(bandit_stats_names,'A')));

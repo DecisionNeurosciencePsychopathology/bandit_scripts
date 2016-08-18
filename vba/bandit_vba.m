@@ -270,7 +270,7 @@ out.suffStat.reward_stake(b.rewardVec==10)=1;
 out.suffStat.reward_stake(b.rewardVec==25)=2;
 out.suffStat.reward_stake(b.rewardVec==50)=3;
 
-%This is what they could have won per trial
+%This is what they could have won per trial <- what we want for createing the probabilities
 out.suffStat.stake = b.stakeVec';
 out.suffStat.stake(b.stakeVec==10)=1;
 out.suffStat.stake(b.stakeVec==25)=2;
@@ -278,16 +278,44 @@ out.suffStat.stake(b.stakeVec==50)=3;
 
 
 %Percentages of reward magnitude and staying
-stop=0;
-out.suffStat.rew10_trials = find(b.rewardVec==10);
-out.suffStat.rew50_trials = find(b.rewardVec==50);
+out.suffStat.mag10_trials = find(b.stakeVec==10);
+out.suffStat.mag25_trials = find(b.stakeVec==25);
+out.suffStat.mag50_trials = find(b.stakeVec==50);
+
+%Determine number of trials with specific magnitude that were win/loss
+out.suffStat.win_10_trials = intersect(winning_trials,out.suffStat.mag10_trials);
+out.suffStat.win_25_trials = intersect(winning_trials,out.suffStat.mag25_trials);
+out.suffStat.win_50_trials = intersect(winning_trials,out.suffStat.mag50_trials);
+out.suffStat.loss_10_trials = intersect(losing_trials,out.suffStat.mag10_trials);
+out.suffStat.loss_25_trials = intersect(losing_trials,out.suffStat.mag25_trials);
+out.suffStat.loss_50_trials = intersect(losing_trials,out.suffStat.mag50_trials);
+
+
+%Find stay trials
 error_code = 999; %If they missed a trial, ie don't want two zeros in a row to count...
-out.suffStat.stay_trials  = find(logical([1; b.chosen_stim(2:end)==b.chosen_stim(1:end-1)]) & b.chosen_stim~=error_code);
-out.suffStat.stay_10 = ismember(out.suffStat.stay_trials,out.suffStat.rew10_trials);
-out.suffStat.stay_50 = ismember(out.suffStat.stay_trials,out.suffStat.rew50_trials);
-out.suffStat.stay_10_prob = sum(out.suffStat.stay_10)./length(out.suffStat.rew10_trials);
-out.suffStat.stay_50_prob = sum(out.suffStat.stay_50)./length(out.suffStat.rew50_trials);
-out.suffStat.diff_10_50_prob = out.suffStat.stay_10_prob - out.suffStat.stay_50_prob;
+out.suffStat.stay_trials  = find(logical([0; b.chosen_stim(2:end)==b.chosen_stim(1:end-1)]) & b.chosen_stim~=error_code);
+
+%These aren;t really nedded but its good to have a breakdown...
+out.suffStat.stay_10_trials = intersect(out.suffStat.stay_trials,out.suffStat.mag10_trials);
+out.suffStat.stay_25_trials = intersect(out.suffStat.stay_trials,out.suffStat.mag25_trials);
+out.suffStat.stay_50_trials = intersect(out.suffStat.stay_trials,out.suffStat.mag50_trials);
+
+
+%Stay prob example (number of win 10 rew mag trials which subj stayed / number of win 10 rew mag trials) 
+out.suffStat.win_stay_10_prob = length(intersect(out.suffStat.win_10_trials,out.suffStat.stay_trials))./length(out.suffStat.win_10_trials);
+out.suffStat.win_stay_25_prob = length(intersect(out.suffStat.win_25_trials,out.suffStat.stay_trials))./length(out.suffStat.win_25_trials);
+out.suffStat.win_stay_50_prob = length(intersect(out.suffStat.win_50_trials,out.suffStat.stay_trials))./length(out.suffStat.win_50_trials);
+out.suffStat.loss_stay_10_prob = length(intersect(out.suffStat.loss_10_trials,out.suffStat.stay_trials))./length(out.suffStat.loss_10_trials);
+out.suffStat.loss_stay_25_prob = length(intersect(out.suffStat.loss_25_trials,out.suffStat.stay_trials))./length(out.suffStat.loss_25_trials);
+out.suffStat.loss_stay_50_prob = length(intersect(out.suffStat.loss_50_trials,out.suffStat.stay_trials))./length(out.suffStat.loss_50_trials);
+
+
+
+%Old - incorrect
+% out.suffStat.stay_10_prob = sum(out.suffStat.stay_10)./length(out.suffStat.rew10_trials);
+% out.suffStat.stay_25_prob = sum(out.suffStat.stay_25)./length(out.suffStat.rew25_trials);
+% out.suffStat.stay_50_prob = sum(out.suffStat.stay_50)./length(out.suffStat.rew50_trials);
+% out.suffStat.diff_10_50_prob = out.suffStat.stay_10_prob - out.suffStat.stay_50_prob;
 
 if save_results
     file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec',id,use_reward_vec);

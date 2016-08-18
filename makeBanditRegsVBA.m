@@ -3,6 +3,9 @@ clear;
 clc;
 
 dirs=dir('data/raw');
+
+addpath('vba\')
+addpath('behav_scripts\')
 %If you want to check the names
 %dirs(3:end).name
 
@@ -39,11 +42,13 @@ parfor i = 3:length(dirs)
         
         %Getting the correctlation of stay probailites and lambdas
         lambdas(i-2) = posterior.muTheta(end,1);
-        diff_of_stay_prob(i-2) = out.suffStat.diff_10_50_prob;
-        ratio_10(i-2) = out.suffStat.stay_10_prob;
-        ratio_50(i-2) = out.suffStat.stay_50_prob;
-        
-        
+        %diff_of_stay_prob(i-2) = out.suffStat.diff_10_50_prob;
+        win_ratio_10(i-2) = out.suffStat.win_stay_10_prob;
+        win_ratio_25(i-2) = out.suffStat.win_stay_25_prob;
+        win_ratio_50(i-2) = out.suffStat.win_stay_50_prob;
+        loss_ratio_10(i-2) = out.suffStat.loss_stay_10_prob;
+        loss_ratio_25(i-2) = out.suffStat.loss_stay_25_prob;
+        loss_ratio_50(i-2) = out.suffStat.loss_stay_50_prob;
     catch
         warning('Bad run detected look at filter!')
         filter(i) = id;
@@ -64,9 +69,14 @@ fclose all;
 
 bad_subjs = L==0; 
 lambdas(bad_subjs)=[];
-diff_of_stay_prob(bad_subjs)=[];
-ratio_10(bad_subjs)=[];
-ratio_50(bad_subjs)=[];
+% diff_of_stay_prob(bad_subjs)=[];
+win_ratio_10(bad_subjs) = [];
+win_ratio_25(bad_subjs) = [];
+win_ratio_50(bad_subjs) = [];
+loss_ratio_10(bad_subjs) = [];
+loss_ratio_25(bad_subjs) = [];
+loss_ratio_50(bad_subjs) = [];
+idNumbers(idNumbers==0)=[];
 
 %make a text file of all the current ids
 save idNumbers idNumbers
