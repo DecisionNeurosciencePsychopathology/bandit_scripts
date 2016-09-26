@@ -58,7 +58,7 @@ for row_i = 1:size(prob,1)
     % as some choices have the same (highest) probability. the
     % previous method forced one option, potentially falsely
     % coding correct/good choices as bad ones. 
-	tmp = find(prob(row_i,:) == nanmax(prob(row_i,:)));
+	tmp = find(prob(row_i,:) == max(prob(row_i,:)));
     picked_stim = stimChar2Num(out.stim_choice(row_i));
     out.best_choice(row_i,1) = any( tmp == picked_stim );
 end
@@ -91,7 +91,7 @@ out.errors.after.perseverative = ...
 out.counts_to_first_C = countTrialsToStim(out.stim_choice(151:end),'C');
 
 % save individual file
-save(sprintf('data/%d.mat',id),'out');
+save(sprintf('subjects/%d.mat',id),'out');
 
 % plots if we want them
 % if(fig_flag)

@@ -27,14 +27,13 @@ use_reward_vec = 1;
 
 %% Where to look for data
 %Quick username check, and path setting
+
 [~, me] = system('whoami');
 me = strtrim(me);
 if save_results
-    if strfind(me,'wilsonj3')
-        file_path = 'E:\data\bandit\individual_results\';
-    else
-        error('You will need to set this in order to save data')
-    end
+    file_path = 'vba_output';
+else
+    error('something went wrong with the vba output dir!')
 end
 
 %Evolution options
@@ -78,7 +77,7 @@ n_hidden_states = 4; %Track value for each arm of the bandit + PE
 
 %% Load in the subject's data
 %u is 2 x ntrials where first row is actions and second row is reward
-b = bandit_vba_read_in_data( 'id',id );
+b = bandit_vba_read_in_data( 'id',id,'data_dir','subjects'); %REPLACE subjects with local dir
 b.id = id;
 censor = b.chosen_stim==999; %Censor some trials first
 subjects_actions = b.chosen_stim;
@@ -231,7 +230,7 @@ out.suffStat.PEminus=PEminus;
 out.suffStat.PEsigned=PEplus-PEminus;
 %Grab the option they chose and remove any error codes
 chosen_index = y;
-chosen_index = carryValueForawrd(chosen_index,y); %If there are any Nan's replace them with the most recent decision made
+chosen_index = carryValueForward(chosen_index,y); %If there are any Nan's replace them with the most recent decision made
 
 %PEchosen is now the pe hidden state
 %out.suffStat.PEchosen = muX_diff(logical(chosen_index))'; %PE of chosen choice
@@ -258,11 +257,16 @@ out.suffStat.value_chosen=shiftMe(out.suffStat.value_chosen);
 %out.suffStat.value_chosen(1) = 0; %This is a NAN since 0/0
 
 %Standardize the PEChosen and ValueChosenDiff regs
+
+%zscore is only in stat toolbox?
+try
 out.suffStat.value_chosen_diff_standardized = ...
     zscore(out.suffStat.value_chosen_diff);
 out.suffStat.PEchosen_standardized = ...
     zscore(out.suffStat.PEchosen);
-
+catch
+    fprintf('Stat toolbox not found!\n\n')
+end
 
 %Create reward stake and just stake align it with trialonset
 out.suffStat.reward_stake = b.rewardVec';
@@ -319,7 +323,7 @@ out.suffStat.loss_stay_50_prob = length(intersect(out.suffStat.loss_50_trials,ou
 
 if save_results
     file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec',id,use_reward_vec);
-    file_str = [file_path file_name];
+    file_str = [file_path filesep file_name];
     save(file_str,'posterior', 'out', 'b')
 end
 
@@ -328,7 +332,7 @@ function x=shiftMe(x)
     x = [x(:,2:end) zeros(size(x,1),1)];
 
 
-function x = carryValueForawrd(x,y)
+function x = carryValueForward(x,y)
 %Remove all NANs and push chosen index forward 
 
 %Pesky indexing, if nan at 1 set it to [1 0 0]'

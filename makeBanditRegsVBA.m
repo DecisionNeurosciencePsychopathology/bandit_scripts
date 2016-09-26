@@ -1,11 +1,21 @@
 %Clear workspace
-clear;
-clc;
+% clear;
+% clc;
 
-dirs=dir('data/raw');
+%Handle dir paths
+dirs=dir('subjects');
 
 addpath('vba\')
 addpath('behav_scripts\')
+
+%if directories do not exist create them
+if ~exist('regs','dir')
+    mkdir('regs')
+end
+if ~exist('vba_output','dir')
+    mkdir('vba_output');
+end
+
 %If you want to check the names
 %dirs(3:end).name
 
@@ -23,7 +33,7 @@ valence=1;
 decay=1; %The logic surrounds decay is kind of confusing
 utility=0;
 save_results=1;
-parfor i = 3:length(dirs)
+for i = 3:length(dirs)
     % make this a function in which you can overwrite everything, or check
     % typically you only make the regs for subject not yet processed.
     
