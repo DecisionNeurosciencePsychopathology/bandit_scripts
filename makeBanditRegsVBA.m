@@ -2,6 +2,10 @@
 % clear;
 % clc;
 
+jj=1;
+hh=1;
+
+
 %Handle dir paths
 dirs=dir('subjects');
 
@@ -33,6 +37,10 @@ valence=1;
 decay=1; %The logic surrounds decay is kind of confusing
 utility=0;
 save_results=1;
+
+
+
+
 for i = 3:length(dirs)
     % make this a function in which you can overwrite everything, or check
     % typically you only make the regs for subject not yet processed.
@@ -65,11 +73,76 @@ for i = 3:length(dirs)
         continue
     end
     
+ try
     %Write the regressors to file
     b = banditmakeregressor_vba(b,out);
     
     
+    %move the regressor files to thorndike
+    newfolder='/Volumes/bek/learn/regs/bandit'; %folder to be place in within thorndike
+    moveregs('bandit_scripts',num2str(b.id),newfolder);
+
+%write the ids that successfully ran into a cell
+  ID(jj,1)=b.id;
+ 
+    
+    task={'bandit'};
+    Task{jj,1}=task; 
+    
+    trialdone=fopen('idlog_bandit.txt');
+    trialdone=fscanf(trialdone,'%d');
+    
+    
+    trialdone1=0;
+    for aa=1:length(trialdone)
+        if trialdone(aa,1) == b.id
+            trialdone1=1;
+        end
+    end
+    
+    if trialdone1 == 1
+        td={'yes'};
+    else
+        td={'no'};
+    end
+    fMRI_Preprocess_Complete{jj,1}=td; 
+    
+     jj=jj+1;
+    
+    %turn completed cell into table
+    bt=table(ID,Task,fMRI_Preprocess_Complete);
+    save('completed','bt')
+    
+
+ catch
+        disp(sprintf('\nUnable to run ID %d: does not have correct folder or file in Thorndike...\n',b.id))
+        
+        %put IDs that didn't run into table
+        ID2(hh,1)=b.id; 
+    
+        task={'bandit'};
+        Task2{hh,1}=task; 
+        
+        hh=hh+1;
+        
+        bt2=table (ID2,Task2);
+        save('unable_to_run','bt2')
+        
+ end
+    
+ 
+    if exist('bt2')==0
+        ID2=0;
+        Task2={'bandit'};
+        bt2=table(ID2,Task2);
+        save('unable_to_run','bt2')
+    end
+   
 end
+
+
+
+
 
 %Close up anything that's stil open
 fclose all;
