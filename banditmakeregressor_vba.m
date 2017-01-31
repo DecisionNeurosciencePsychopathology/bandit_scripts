@@ -6,6 +6,7 @@ fprintf('\nCreating subject specific regressor files\n\n');
 data_dump_str = strcat('E:\data\bandit\regs\', num2str(b.id));
 b.regs = [];
 b.rew_trials_only = 0;
+b.loss_trials_only = 0;
 n_t = length(b.stim_ACC); %Length of trials
 total_blocks = 3;
 b.trials_per_block = n_t/total_blocks;
@@ -84,8 +85,12 @@ trial.event_end=reshape(feedback.event_end,[n_t,1]);
 [b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen_diff',out.suffStat.value_chosen_diff',0,b);
 [b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen_diff_standardized',out.suffStat.value_chosen_diff_standardized',0,b);
 
+%Experiment end of decision phase plus stick
+[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_end,decision.event_end+2,'valueDecisionEndAligned_chosen',out.suffStat.value_chosen',0,b);
+
 % Stake vector
 [b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'stakeDecisionAligned',out.suffStat.stake',0,b);
+[b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'stakeDecisionAligned_MC',out.suffStat.stake_mc',0,b); %mean correted
 
 % Motor Regressors
 % right = 2; left = 7;
@@ -117,36 +122,46 @@ plusMinusPE=(out.suffStat.PEplus+out.suffStat.PEminus*-1)'; %Combine the two int
 
 % Stake vector
 [b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'stakeFeedbackAligned',out.suffStat.stake',0,b);
+[b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'stakeWinsFeedbackAligned',out.suffStat.stake'.*b.stim_ACC,0,b);
+[b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'stakeWinsFeedbackAligned_MC',((out.suffStat.stake'.*b.stim_ACC)-mean(out.suffStat.stake'.*b.stim_ACC)),0,b);
 
-% Reward-Stake aligned with Feedback
+[b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'stakeLossesFeedbackAligned',out.suffStat.stake'.*(~b.stim_ACC),0,b);
+
+% Reward-Mag aligned with Feedback
 [b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'rewardMagnitudeFeedbackAligned',out.suffStat.reward_stake',0,b);
+[b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'rewardMagnitudeFeedbackAligned_MC',out.suffStat.reward_stake_mc',0,b);
+
+%Reward Magnitude Omission, just 1 if rew was present otherwise 0
+[b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'rewardOmissionFeedbackAligned',b.stim_ACC,0,b);
 
 %% Trial length regressors
 [b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,trial.event_beg,trial.event_end,'rewardMagnitudeTrialAligned',out.suffStat.reward_stake',0,b);
 
-
 %% Investigating only the rewarded trials
+%Incorrect delete later!
 %Using the model dated in April 29 2106
 %Reward only trials
-stim_ACC = logical(b.stim_ACC);
-b.rew_trials_only = 1;
-% decision.event_beg_rew_only = decision.event_beg(stim_ACC);
-% decision.event_end_rew_only = decision.event_end(stim_ACC);
-% feedback.event_beg_rew_only = feedback.event_beg(stim_ACC);
-% feedback.event_end_rew_only = feedback.event_end(stim_ACC);
-
-write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'decision_Times_rew_trials_only',b.choice_censor,0,b);
-write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'feedback_Times_rew_trials_only',b.feedback_censor,0,b);
-write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'stakeDecisionAligned_rew_trials_only',out.suffStat.stake',0,b);
-write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'rewardMagnitudeFeedbackAligned_rew_trials_only',out.suffStat.reward_stake',0,b);
-write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen_diff_standardized_rew_trials_only',out.suffStat.value_chosen_diff_standardized',0,b);
-write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEs_rew_trials_only',out.suffStat.PEchosen',0,b);
-write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'left_rew_trials_only',b.left,0,b);
-b.rew_trials_only = 0;
-
+% b.rew_trials_only = 1;
+% % decision.event_beg_rew_only = decision.event_beg(stim_ACC);
+% % decision.event_end_rew_only = decision.event_end(stim_ACC);
+% % feedback.event_beg_rew_only = feedback.event_beg(stim_ACC);
+% % feedback.event_end_rew_only = feedback.event_end(stim_ACC);
+% 
+% write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'decision_Times_rew_trials_only',b.choice_censor,0,b);
+% write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'feedback_Times_rew_trials_only',b.feedback_censor,0,b);
+% write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'stakeDecisionAligned_rew_trials_only',out.suffStat.stake',0,b);
+% write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'stakeFeedbackAligned_rew_trials_only',out.suffStat.stake',0,b);
+% write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'rewardMagnitudeFeedbackAligned_rew_trials_only',out.suffStat.reward_stake',0,b);
+% write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen_diff_standardized_rew_trials_only',out.suffStat.value_chosen_diff_standardized',0,b);
+% write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen_diff_rew_trials_only',out.suffStat.value_chosen_diff',0,b);
+% write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEs_rew_trials_only',out.suffStat.PEchosen',0,b);
+% write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'left_rew_trials_only',b.left,0,b);
+% b.rew_trials_only = 0;
 
 %% Censor file
 gdlmwrite([data_dump_str 'banditCensorOnly.regs'],b.hrf_regs.to_censor');
+gdlmwrite([data_dump_str 'banditWinOnly.regs'],b.hrf_regs.win_censor');
+gdlmwrite([data_dump_str 'banditLossOnly.regs'],b.hrf_regs.loss_censor');
 
 
 
@@ -206,6 +221,11 @@ for i = 1:length(b.trial_index)
         filter(filter==0) = nan;
         block_data(1:b.trials_per_block,4) = num2cell(filter(trial_index_1: trial_index_2,:));
         ast = {'*', '*', '*', '*'};
+    elseif b.loss_trials_only
+        filter = double(~b.stim_ACC);
+        filter(filter==0) = nan;
+        block_data(1:b.trials_per_block,4) = num2cell(filter(trial_index_1: trial_index_2,:));
+        ast = {'*', '*', '*', '*'};
     end
     
     if i<length(b.trial_index)
@@ -224,7 +244,7 @@ c = c(~any(cellfun(@isnan,c),2),:);
 %Check on c!
 
 %Remove extra column
- if b.rew_trials_only
+ if b.rew_trials_only || b.loss_trials_only
     c(:,4) = [];
  end
 

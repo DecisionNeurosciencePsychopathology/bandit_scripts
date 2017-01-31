@@ -3,14 +3,37 @@ function b=createCensorRegressor(b,num_blocks)
 %time points are to be included (1) and which are  
 %to be excluded (0).
 
+%NOTE: this maybe confusing, by censor I actually mean which trials to
+%remove. because after the createSimpleRegressor fx is ran, I subtract
+%everthing by 1 to correctly flip, thus including all the trials we
+%originally wanted to keep. Then after reampling to TR's there are some
+%values which are not a 1 or 0. So we need to round using either ceil
+%(currently), round, or floor. Not sure which is best or if it has that
+%large of an impact. I'm not really sure why we subtract everything by 1
+%after rounding, but reagrdless we need to flip it again so we take the
+%opposite logical.
 
 frequency_scale_hz = 10;
 scan_tr = .75;
+tr = .1;
+hemoir = spm_hrf(tr, [6,16,1,1,6,0,32]); % could stand to be tuned...
 block_length = 925; %But its really 925 ask Alex!
 b.stim_NextOnsetTime=[b.stim_OnsetTime(2:end); b.stim_RTTime(end)];
+
+%Do a quick check for irregular times and note them
+if(any((b.stim_NextOnsetTime-b.stim_OnsetTime) < 0))
+    warning('Irregular onset times, just using offset time ')
+    b.stim_NextOnsetTime = b.stim_OffsetTime + min(b.stim_OffsetTime-b.stim_OnsetTime); %Add buffer stick
+    b.stim_NextOnsetTime(end) = b.stim_RTTime(end); % just to keep same convention
+end
+
+
 %b.missed_responses = ( b.stim_RT == 0 ); %Only included no responses
 b.missed_responses = ( b.chosen_stim == 999 ); %Includes wrong button presses and rt == 0
 b.trials_to_censor = b.missed_responses;
+
+b.loss_trials = (b.stim_ACC | b.trials_to_censor); %Subject did not win but made a choice.
+
 %b.trials_to_censor(b.rewardVec==0) = 1; %Adding in the trials in which there was no reward as well.
 
 for block_n = 1:num_blocks
@@ -25,17 +48,37 @@ for block_n = 1:num_blocks
     
     tmp_reg.(['regressors' num2str(block_n)]).to_censor = ...
         createSimpleRegressor(event_beg, event_end, epoch_window, b.trials_to_censor(trial_index_1:trial_index_2));
-    tmp_reg.(['regressors' num2str(block_n)]).to_censor = ones(size(tmp_reg.(['regressors' num2str(block_n)]).to_censor)) - tmp_reg.(['regressors' num2str(block_n)]).to_censor;
+    tmp_reg.(['regressors' num2str(block_n)]).to_censor = ones(size(tmp_reg.(['regressors' num2str(block_n)]).to_censor)) - tmp_reg.(['regressors' num2str(block_n)]).to_censor; %flip it the correct way
+    
+    %It is ~b.stim_ACC becase we want to CENSOR the losses i.e. they have a
+    %1 or TRUE value
+    tmp_reg.(['regressors' num2str(block_n)]).win_censor = ...
+        createSimpleRegressor(event_beg, event_end, epoch_window, ~b.stim_ACC(trial_index_1:trial_index_2));
+    tmp_reg.(['regressors' num2str(block_n)]).win_censor = ones(size(tmp_reg.(['regressors' num2str(block_n)]).win_censor)) - tmp_reg.(['regressors' num2str(block_n)]).win_censor;
+    
+    tmp_reg.(['regressors' num2str(block_n)]).loss_censor = ...
+        createSimpleRegressor(event_beg, event_end, epoch_window, b.loss_trials(trial_index_1:trial_index_2));
+    tmp_reg.(['regressors' num2str(block_n)]).loss_censor = ones(size(tmp_reg.(['regressors' num2str(block_n)]).loss_censor)) - tmp_reg.(['regressors' num2str(block_n)]).loss_censor;
     
     
-    % NB: the first 5s are censored because they capture HRF to events
+    
+    
+    hrfregs = fieldnames(tmp_reg.regressors1)';
+    for n = 1:numel(hrfregs)
+    % NB: the first 5s (or TRs?) are censored because they capture HRF to events
     % preceding the first trial
-    tmp_reg.(['hrfreg' num2str(block_n)]).to_censor = ...
+    tmp_reg.(['hrfreg' num2str(block_n)]).(hrfregs{n}) = ...
         gsresample( ...
-            [zeros(50,1)' tmp_reg.(['regressors' num2str(block_n)]).to_censor(1:end-51)], ...
+            [zeros(50,1)' tmp_reg.(['regressors' num2str(block_n)]).(hrfregs{n})(1:end-51)], ...
         10,1./scan_tr);
+    end
+    
+
         
 end
+
+
+
 
 
 fnm = fieldnames(tmp_reg.regressors1)';
@@ -57,10 +100,21 @@ switch num_blocks
     otherwise
         disp('Error occured somewhere')
 end
-    
+
+%Only subtract everything by 1 if you built the censor to remove trials
+%with a TRUE value for that time point, i.e. I want to remove trial x so
+%its vvalue is a 1, threrfore I must subjtract everything by 1 later since
+%1=keep 0 = remove.
 b.hrf_regs.to_censor = 1-(ceil(b.hrf_regs.to_censor));
 b.hrf_regs.to_censor = ~b.hrf_regs.to_censor;
+
+b.hrf_regs.win_censor = 1-(ceil(b.hrf_regs.win_censor));
+b.hrf_regs.win_censor = ~b.hrf_regs.win_censor;
+
+b.hrf_regs.loss_censor = 1-(ceil(b.hrf_regs.loss_censor));
+b.hrf_regs.loss_censor = ~b.hrf_regs.loss_censor;
 %b.hrf_regs.to_censor = b.hrf_regs.to_censor(1:length(b.hrf_regs.RT));
+foo=0;
 
 
 

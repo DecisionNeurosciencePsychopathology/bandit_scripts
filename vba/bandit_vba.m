@@ -22,7 +22,7 @@ end
 
 
 %I think it would be easier just to not make this an argument
-use_reward_vec = 1;
+use_reward_vec = 0;
 
 
 %% Where to look for data
@@ -270,11 +270,17 @@ out.suffStat.reward_stake(b.rewardVec==10)=1;
 out.suffStat.reward_stake(b.rewardVec==25)=2;
 out.suffStat.reward_stake(b.rewardVec==50)=3;
 
+%mean corrected rew mag
+out.suffStat.reward_stake_mc = out.suffStat.reward_stake - mean(out.suffStat.reward_stake);
+
 %This is what they could have won per trial <- what we want for createing the probabilities
 out.suffStat.stake = b.stakeVec';
 out.suffStat.stake(b.stakeVec==10)=1;
 out.suffStat.stake(b.stakeVec==25)=2;
 out.suffStat.stake(b.stakeVec==50)=3;
+
+%Mean corrected stake regressor
+out.suffStat.stake_mc = out.suffStat.stake - mean(out.suffStat.stake);
 
 
 %Percentages of reward magnitude and staying

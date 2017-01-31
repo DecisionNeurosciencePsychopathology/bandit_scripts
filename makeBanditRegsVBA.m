@@ -23,7 +23,7 @@ valence=1;
 decay=1; %The logic surrounds decay is kind of confusing
 utility=0;
 save_results=1;
-parfor i = 3:length(dirs)
+for i = 3:length(dirs)
     % make this a function in which you can overwrite everything, or check
     % typically you only make the regs for subject not yet processed.
     
