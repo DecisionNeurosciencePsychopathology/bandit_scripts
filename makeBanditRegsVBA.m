@@ -114,10 +114,11 @@ for i = 3:length(dirs)
     save('completed','bt')
     
 
- catch
-        disp(sprintf('\nUnable to run ID %d: does not have correct folder or file in Thorndike...\n',b.id))
-        
-        %put IDs that didn't run into table
+ catch exception
+     
+     errorlog('bandit',b.id,exception)
+     
+     %put IDs that didn't run into table
         ID2(hh,1)=b.id; 
     
         task={'bandit'};
