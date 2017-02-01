@@ -44,6 +44,7 @@ procs.suffixes.feedbk = {'OnsetDelay','OnsetTime','OffsetTime'};
 
 %  --  parse 'varargin' arguments  --  %
 id = varargin{ find(strcmp('id',varargin))+1 };
+data_dir = varargin{ find(strcmp('data_dir',varargin))+1 };
 
 %  --  get the data  --  %
 % (yuck)
@@ -64,7 +65,7 @@ for n_proc = 1:numel(procs.names)
     get_vars{end+1} = 'stimlist';
     get_vars{end+1} = 'jitter1'; get_vars{end+1} = 'jitter2';
     
-    a.(procs.names{n_proc}) = getfmriData(id,get_vars,procs.names{n_proc});
+    a.(procs.names{n_proc}) = getfmriData(id,get_vars,procs.names{n_proc},data_dir);
     a.(procs.names{n_proc}).showstim_jitter1 = a.(procs.names{n_proc}).jitter1;
     a.(procs.names{n_proc}).showstim_jitter2 = a.(procs.names{n_proc}).jitter2;
     a.(procs.names{n_proc}) = rmfield(a.(procs.names{n_proc}),{'jitter1','jitter2'});
@@ -234,15 +235,15 @@ comp_index = cell2mat(cellfun(@(x) isequal(x,comp_cens), prefix, 'UniformOutput'
 
 
 %% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-function xout = getfmriData(id,vars,procedure)
+function xout = getfmriData(id,vars,procedure,data_dir)
 % reads eprime data for a given bandit subject based on ID
 
 % Find the eprime file
 %data_dir  = [pathroot 'analysis/bandit/fmri/data/raw/'];
-data_dir  = 'C:/kod/fMRI/data/raw/'; %for testing purposes
-file_name = ls([data_dir sprintf('%d/*vrbl_scanner*.txt',id)]);
+%data_dir  = 'C:/kod/fMRI/data/raw/'; %for testing purposes
+file_name = ls([data_dir filesep sprintf('%d/*vrbl_scanner*.txt',id)]);
 %fpath     = @(~) [pathroot sprintf('analysis/bandit/fmri/data/raw/%d/%s',id,file_name)];
-fpath     = @(~) [ data_dir sprintf('%d/%s',id,file_name)];
+fpath     = @(~) [ data_dir filesep sprintf('%d/%s',id,file_name)];
 
 % read in the data (make sure range to search raw text is correct)
 xout = eprimeread(fpath(),procedure,vars,0,-13,18);

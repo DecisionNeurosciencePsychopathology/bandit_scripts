@@ -39,7 +39,7 @@ return
 function dout = importFromTextFile
 
 % create file pointer, main file
-file_name = [pathroot 'db/bandit/CORRECT-crdt-sched-vrbl-rich-2015-01-23.txt'];
+file_name = 'CORRECT-crdt-sched-vrbl-rich-2015-01-23.txt';
 
 %create file pointer practive file
 %file_name = ['K:\studies\suicide\3ArmBandit\crdt-sched-PRACTICE.txt'];

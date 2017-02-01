@@ -2,8 +2,14 @@ function b = banditmakeregressor_vba(b,out)
 
 fprintf('\nCreating subject specific regressor files\n\n');
 
+data_dump_str=sprintf('regs/%s/%s',num2str(b.id),num2str(b.id));
+sub_folder=sprintf('regs/%s',num2str(b.id));
+ 
+if ~exist(sub_folder,'file')
+    mkdir(sub_folder)
+    fprintf('Creating id specific reg folder in: %s\n\n',sub_folder);
+end
 
-data_dump_str = strcat('E:\data\bandit\regs\', num2str(b.id));
 b.regs = [];
 b.rew_trials_only = 0;
 b.loss_trials_only = 0;
@@ -83,7 +89,7 @@ trial.event_end=reshape(feedback.event_end,[n_t,1]);
 [b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_diff',out.suffStat.value_diff',0,b);
 [b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen',out.suffStat.value_chosen',0,b);
 [b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen_diff',out.suffStat.value_chosen_diff',0,b);
-[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen_diff_standardized',out.suffStat.value_chosen_diff_standardized',0,b);
+%[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen_diff_standardized',out.suffStat.value_chosen_diff_standardized',0,b);
 
 %Experiment end of decision phase plus stick
 [b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_end,decision.event_end+2,'valueDecisionEndAligned_chosen',out.suffStat.value_chosen',0,b);
@@ -109,7 +115,7 @@ b.left = (b.stim_RESP==7);
 [b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPosPEs',out.suffStat.PEchosen_pos',0,b);
 [b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenNegPEs',out.suffStat.PEchosen_neg',0,b);
 [b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEs',out.suffStat.PEchosen',0,b);
-[b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEs_standardized',out.suffStat.PEchosen_standardized',0,b);
+%[b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEs_standardized',out.suffStat.PEchosen_standardized',0,b);
 [b.stim_times.pospes_fsl,b.stim_times.pospes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'posPEs',out.suffStat.PEplus',0,b);
 [b.stim_times.negpes_fsl,b.stim_times.negpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'negPEs',out.suffStat.PEminus',0,b);
 plusMinusPE=(out.suffStat.PEplus+out.suffStat.PEminus*-1)'; %Combine the two into one regressor
@@ -157,7 +163,6 @@ plusMinusPE=(out.suffStat.PEplus+out.suffStat.PEminus*-1)'; %Combine the two int
 % write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEs_rew_trials_only',out.suffStat.PEchosen',0,b);
 % write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'left_rew_trials_only',b.left,0,b);
 % b.rew_trials_only = 0;
-
 %% Censor file
 gdlmwrite([data_dump_str 'banditCensorOnly.regs'],b.hrf_regs.to_censor');
 gdlmwrite([data_dump_str 'banditWinOnly.regs'],b.hrf_regs.win_censor');
