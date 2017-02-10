@@ -349,7 +349,7 @@ end
 
 x(isnan(y)) = x(find(isnan(y))-size(y,1));
 if numel(find(isnan(x)))>0
-    x = carryValueForawrd(x,y);
+    x = carryValueForward(x,y);
 end
 
 function plot_subject_vs_contingency(b,out)

@@ -1,7 +1,7 @@
 function q = bandit_fMRIproc( varargin )
 
 % processes 3-armed bandit data on all subjects
-data_dir = 'data/'; % set data path
+data_dir = 'subjects/'; % set data path
 
 % create list of subjects defined by directory names
 numlist = num_scan(dir([data_dir]));
@@ -92,10 +92,15 @@ num_out = zeros(length(data_in),1);
 
 for n = 1:length(data_in) %index_array %3:(length(A))-2
     %num_out(n) = str2double(data_in(n).name);
-    num_out(n) = str2double(data_in(n).name(1:end-4));
+    %New data structure protocol with automated pipeline, only grab mat
+    %files
+    if data_in(n).bytes>0
+        num_out(n) = str2double(data_in(n).name(1:end-4));
+    end
 end
 
 q_nan = isnan(num_out);
 num_out = num_out(~q_nan);
+num_out(num_out==0)=[];
 
 return
