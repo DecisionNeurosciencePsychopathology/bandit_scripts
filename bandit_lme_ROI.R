@@ -271,11 +271,39 @@ ls_sm2_1 <- lsmeans(sm2,"magf")
 plot(ls_sm2_1, type ~ stay, horiz=F,ylab = "logit(p_stay)", xlab = "Current magnitude")
 
 # plot trialwise choice probability
-df neeeds to have logicals for probability for each choice
 
 ggplot(subset(df), aes(x=trial, y=probA)) + stat_smooth(method="loess") + theme_gray(base_size=20) #+ facet_wrap(~msplit) #geom_jitter(alpha=0.2) +
 
+rdf <- merge(hdf,sw, by = "ID", all.x = TRUE)
+rdf$trial_sc <- scale(rdf$Trial)
+View(rdf)
+rdf$vmPFC_value_17_sc <- scale(rdf$vmPFC_value_17)
+rm1 <- glmer(stay ~ rew_lag*magf_lag + rew_lag*vmPFC_value_17_sc +  rew_lag*trial_sc + (1|ID), family = binomial(), data = rdf)
+summary(rm1)
+car::Anova(rm1)
+ls_rm1 <- lsmeans(rm1,"rew_lag", by = "vmPFC_value_17_sc", at = list(vmPFC_value_17_sc = c(-2,0,2)))
+plot(ls_rm1, type ~ stay, horiz=F,ylab = "logit(p_stay)", xlab = "reinforcement")
 
+rdf$left_IFG_value_20_sc <- scale(rdf$left_IFG_value_20)
+rm2 <- glmer(stay ~ rew_lag*magf_lag + rew_lag*left_IFG_value_20_sc +  rew_lag*trial_sc + (1|ID), family = binomial(), data = rdf)
+summary(rm2)
+car::Anova(rm2)
+ls_rm2 <- lsmeans(rm2,"rew_lag", by = "left_IFG_value_20_sc", at = list(left_IFG_value_20_sc = c(-2,0,2)))
+plot(ls_rm2, type ~ stay, horiz=F,ylab = "logit(p_stay)", xlab = "reinforcement")
+
+rdf$SMA_value_4_sc <- scale(rdf$SMA_value_4)
+rm3 <- glmer(stay ~ rew_lag*magf_lag + rew_lag*SMA_value_4_sc +  rew_lag*trial_sc + (1|ID), family = binomial(), data = rdf)
+summary(rm3)
+car::Anova(rm3)
+ls_rm3 <- lsmeans(rm3,"rew_lag", by = "SMA_value_4_sc", at = list(SMA_value_4_sc = c(-2,0,2)))
+plot(ls_rm3, type ~ stay, horiz=F,ylab = "logit(p_stay)", xlab = "reinforcement")
+
+rdf$right_mid_orbital_gy_rewMag_2_sc <- scale(rdf$right_mid_orbital_gy_rewMag_2)
+rm4 <- glmer(stay ~ rew_lag*magf_lag + rew_lag*right_mid_orbital_gy_rewMag_2_sc +  rew_lag*trial_sc + (1|ID), family = binomial(), data = rdf)
+summary(rm4)
+car::Anova(rm4)
+ls_rm4 <- lsmeans(rm4,"rew_lag", by = "right_mid_orbital_gy_rewMag_2_sc", at = list(right_mid_orbital_gy_rewMag_2_sc = c(-2,0,2)))
+plot(ls_rm4, type ~ stay, horiz=F,ylab = "logit(p_stay)", xlab = "reinforcement")
 
 
 
