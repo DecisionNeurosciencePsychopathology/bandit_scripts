@@ -1,12 +1,14 @@
 %Just run the make regressor script
 
-load('C:/kod\fMRI/idNumbers');
-id_list = idNumbers;
+%load('C:/kod/fMRI/idNumbers');
+load('C:\kod\fMRI\subjects\bandit_data.mat')
+id_list = ball.id;
 fail_ids=[];
 for i = 1:length(id_list)
     try
     id = id_list(i);
-    id_file_list = glob(sprintf('E:/data/bandit/individual_results/*%d*1_rewVec*',id));
+    %id_file_list = glob(sprintf('E:/data/bandit/individual_results/*%d*1_rewVec*',id));
+    id_file_list = glob(sprintf('C:/kod/fMRI/vba_output/*%d*0_rewVec*',id));
     load(id_file_list{:}) %Load in the data i.e. out, posterior, b
     b = banditmakeregressor_vba(b,out); %Write the regressors to file
     
@@ -19,8 +21,8 @@ for i = 1:length(id_list)
 %     valChosenDiff_corr(i) = corr(out.suffStat.stake',out.suffStat.value_chosen_diff');
 %     valDiff_corr(i) = corr(out.suffStat.stake',out.suffStat.value_diff');
     catch
-        fprintf('FAILED %d \n\n',b.id);
-        fail_ids = [fail_ids; b.id];
+        fprintf('FAILED %d \n\n',id);
+        fail_ids = [fail_ids; id];
         continue
     end
 end

@@ -126,6 +126,9 @@ plusMinusPE=(out.suffStat.PEplus+out.suffStat.PEminus*-1)'; %Combine the two int
 [b.stim_times.valdiff_fsl,b.stim_times.valdiff_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valueFeedbackAligned_diff',out.suffStat.value_diff',0,b);
 [b.stim_times.valchosen_fsl,b.stim_times.valchosen_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valueFeedbackAligned_chosen',out.suffStat.value_chosen',0,b);
 
+%Different value flavor regressor
+[b.stim_times.valchosen_fsl,b.stim_times.valchosen_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valuePlus1DiffFeedbackAligned_chosen',out.suffStat.vtplus1_chosen_diff',0,b);
+
 % Stake vector
 [b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'stakeFeedbackAligned',out.suffStat.stake',0,b);
 [b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'stakeWinsFeedbackAligned',out.suffStat.stake'.*b.stim_ACC,0,b);
@@ -140,8 +143,12 @@ plusMinusPE=(out.suffStat.PEplus+out.suffStat.PEminus*-1)'; %Combine the two int
 %Reward Magnitude Omission, just 1 if rew was present otherwise 0
 [b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'rewardOmissionFeedbackAligned',b.stim_ACC,0,b);
 
+%Take the difference between reward_stake (i.e rew magnitude) and value_chosen_diff align with feedback
+[b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'rewardMagValueChoDiffContrast',(out.suffStat.reward_stake - abs(out.suffStat.value_chosen_diff))',0,b);
+
+
 %% Trial length regressors
-[b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,trial.event_beg,trial.event_end,'rewardMagnitudeTrialAligned',out.suffStat.reward_stake',0,b);
+%[b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,trial.event_beg,trial.event_end,'rewardMagnitudeTrialAligned',out.suffStat.reward_stake',0,b);
 
 %% Investigating only the rewarded trials
 %Incorrect delete later!

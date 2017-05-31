@@ -5,7 +5,7 @@
 % Jan Kalkus
 % 26 Dec 2012
 
-load('data/bandit_data.mat');
+load('subjects/bandit_data.mat');
 %load([pathroot 'analysis/bandit/data/PersevExp/bandit_data-ps_thr_0.3.mat']);
 %load([pathroot 'analysis/bandit/data/PersevExp/bandit_data-ps_thr_0.5.mat']);
 %load([pathroot 'analysis/bandit/data/PersevExp/bandit_data-ps_thr_0.8.mat']);
@@ -14,7 +14,7 @@ load('data/bandit_data.mat');
 %fid = fopen([pathroot 'analysis/bandit/data/bandit2spss.dat'],'w');
 %fid = fopen([pathroot 'analysis/bandit/data/bandit2spss_p0.3.dat'],'w');
 %fid = fopen([pathroot 'analysis/bandit/data/bandit2spss_p0.5.dat'],'w');
-fid = fopen('data/bandit2spss_fMRIData.dat','w');
+fid = fopen('subjects/bandit2spss_fMRIData.dat','w');
 
 fprintf(fid,'ID\tprob_switch_err_fMRI\tspont_switch_err_fMRI\tpersev_err_fMRI\tpercent_corr_fMRI\t');
 fprintf(fid,'before_prob_sw_fMRI\tbefore_spont_sw_fMRI\tbefore_persev_fMRI\tbefore_percent_corr_fMRI\t');

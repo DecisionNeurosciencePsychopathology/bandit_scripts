@@ -4,19 +4,38 @@
 % 13 Nov 2012
 % Jon Wilson 4/22/2016
 
-
-
 function  out = bandit_fMRI_sub_proc(id, b, design_struct)
 % process behavioral data from variable-schedule 3-armed bandit task
 % more details at: http://bit.ly/HvBdby
 
-%REMOVE THE BLODDY COMPUTER TRIALS!!!
-fprintf('Filtering computer trials...\n')
-computer_trial_filter = cellfun(@isempty,regexp(b.protocol_type,'comp'));
+%Decide which trials you want to filter, this only applys to the data
+%structure in the subjects dir
 
+filter_comp_only=0; %Filter only the computer trials
+filter_myst_only=0; %Filter only the mystery trials
+filter_myst_and_comp=1; %Filter both comp and myst trials
 
-b=remove_computer_trials(b,computer_trial_filter);
-design_struct=remove_computer_trials(design_struct,computer_trial_filter);
+if filter_comp_only
+    %REMOVE THE BLODDY COMPUTER TRIALS!!!
+    fprintf('Filtering computer trials...\n')
+    trial_filter = cellfun(@isempty,regexp(b.protocol_type,'comp'));
+elseif filter_myst_only
+    %Remove the mystry trials as well 5/25/17
+    fprintf('Filtering mystery trials trials...\n')
+    trial_filter = cellfun(@isempty,regexp(b.protocol_type,'myst'));
+elseif filter_myst_and_comp
+    fprintf('Filtering both computer and  mystery trials trials...\n')
+    trial_filter_comp = cellfun(@isempty,regexp(b.protocol_type,'comp'));
+    trial_filter_myst = cellfun(@isempty,regexp(b.protocol_type,'myst'));
+    trial_filter = trial_filter_comp==trial_filter_myst;
+else
+    fprintf('Not filtering any trials!\n')
+    trial_filter = ones(length(b.protocol_type),1);
+end
+
+b=filter_trials(b,trial_filter);
+design_struct=filter_trials(design_struct,trial_filter);
+
 
 %Grab RT for future use
 out.stim_RT = b.stim_RT;
@@ -447,11 +466,11 @@ set(h,'XLim',[1 300],'YLim',[0 1]);
 
 return
 
-function b = remove_computer_trials(b,computer_trial_filter)
+function b = filter_trials(b,trial_filter)
 fnames = fieldnames(b);
 for i=1:length(fnames)
     try
-        b.(fnames{i}) = b.(fnames{i})(computer_trial_filter);
+        b.(fnames{i}) = b.(fnames{i})(trial_filter);
     catch
         fprintf('Probably just the file name\n')
     end

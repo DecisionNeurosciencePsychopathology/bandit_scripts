@@ -214,6 +214,11 @@ prefix=cellfun(@(x) x(1:4), b.protocol_type, 'UniformOutput', false);
 myst_index = cell2mat(cellfun(@(x) isequal(x,myst_cens), prefix, 'UniformOutput', false));
 comp_index = cell2mat(cellfun(@(x) isequal(x,comp_cens), prefix, 'UniformOutput', false));
 %b.stim_RT(comp_index)=0; %remove computer trials from choice
+
+%For long format data file
+b.stakeVec_filtered=b.stakeVec;
+b.stakeVec_filtered(~comp_index==myst_index) = [];
+
 %%
 
 % %run model

@@ -246,14 +246,25 @@ out.suffStat.value_not_chosen=choices(~logical(chosen_index))';
 out.suffStat.value_not_chosen = reshape(out.suffStat.value_not_chosen,2,300);
 not_chosen_sum=sum(out.suffStat.value_not_chosen); %Keep this var on ice for now
 out.suffStat.value_chosen_diff = out.suffStat.value_chosen - mean(out.suffStat.value_not_chosen); %Do not shift this one!
-out.suffStat.value_chosen=out.suffStat.value_chosen./sum(choices); 
+
+%Create different flavor of value difference regressor in which v(t+1) is
+%indexed by chosen_index, (i.e. Vtplus1(chosen_index)) and subtracted by
+%the mean(Vtplus1(~chosen_index)))
+out.suffStat.vtplus1 = choices(:,2:end);
+out.suffStat.vtplus1_not_chosen=out.suffStat.vtplus1(~logical(chosen_index(:,1:end-1)))';
+out.suffStat.vtplus1_not_chosen = reshape(out.suffStat.vtplus1_not_chosen,2,length(out.suffStat.vtplus1));
+out.suffStat.vtplus1_chosen_diff=[(out.suffStat.vtplus1(logical(chosen_index(:,1:end-1)))' - mean(out.suffStat.vtplus1_not_chosen)) 0];
+
+
+%Value chosen was normalized at one point?
+%out.suffStat.value_chosen=out.suffStat.value_chosen./sum(choices); 
 
 %Shift all the value regressors by 1
 out.suffStat.value=shiftMe(out.suffStat.value);
 out.suffStat.value_diff=shiftMe(out.suffStat.value_diff);
 out.suffStat.value_chosen=shiftMe(out.suffStat.value_chosen);
 out.suffStat.value_not_chosen=shiftMe(out.suffStat.value_not_chosen);
-out.suffStat.value_chosen=shiftMe(out.suffStat.value_chosen);
+%out.suffStat.value_chosen=shiftMe(out.suffStat.value_chosen);
 %out.suffStat.value_chosen(1) = 0; %This is a NAN since 0/0
 
 %Standardize the PEChosen and ValueChosenDiff regs
