@@ -112,6 +112,22 @@ hdf$val4 <- value_pcas$coord[,4]
 
 summary(value.pca)
 plot(value.pca,type = 'l')
+
+
+plot(sort(value.pca$rotation[,1]),xaxt = "n", ann = FALSE)
+axis(1, at = 1:27, labels=names(sort(value.pca$rotation[,1])), las = 2)
+
+plot(sort(value.pca$rotation[,2]),xaxt = "n", ann = FALSE)
+axis(1, at = 1:27, labels=names(sort(value.pca$rotation[,2])), las = 2)
+
+plot(sort(value.pca$rotation[,3]),xaxt = "n", ann = FALSE)
+axis(1, at = 1:27, labels=names(sort(value.pca$rotation[,3])), las = 2)
+
+plot(sort(value.pca$rotation[,4]),xaxt = "n", ann = FALSE)
+axis(1, at = 1:27, labels=names(sort(value.pca$rotation[,4])), las = 2)
+
+
+ggbiplot(value.pca, choices = 1:2)
 ggbiplot(value.pca, choices = 3:4)
 
 
@@ -366,9 +382,12 @@ ls_bm7a <- lsmeans(bm7,"rew_lag", by =  "val2", at = list(val2 = c(-2,0,2)))
 summary(ls_bm7a)
 plot(ls_bm7a, type ~ stay, horiz=F,ylab = "p_stay", xlab = "reinforcement")
 
-bm8 <- glmer(stay ~ stay_lag + rew_lag*magf_lag*mag1 + rew_lag*trial_sc + rew_lag*male + rew_lag*val1 + rew_lag*val2 + rew_lag*LEARNAGE + (1|ID), family = binomial(), data = rdf)
+bm8 <- glmer(stay ~ stay_lag + rew_lag*magf_lag*mag1 + rew_lag*trial_sc*LEARNAGE + rew_lag*male + rew_lag*val1 + rew_lag*val2 + (1|ID), family = binomial(), data = rdf)
 summary(bm8)
 car::Anova(bm8)
 anova(bm7,bm8)
+ls_bm8 <- lsmeans(bm8,"rew_lag", by =  "LEARNAGE", "trial_sc", at = list(trial_sc = c(-2,0,2), LEARNAGE = c(50,65,80)))
+summary(ls_bm8)
+plot(ls_bm8, type ~ stay, horiz=F,ylab = "effect of learning on p_stay", xlab = "reinforcement")
 
 
