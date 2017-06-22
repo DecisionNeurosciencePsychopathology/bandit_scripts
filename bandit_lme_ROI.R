@@ -72,28 +72,6 @@ sdf <- sdf[,-grep("left_ACC",names(sdf))]
 View(sdf)
 
 
-nums <- sapply(hdf, is.numeric)
-ndf <- hdf[ , nums]
-View(ndf)
-ndf <-  ndf[,-grep("motor",names(ndf))]
-View(ndf)
-ndf <-  ndf[,-grep("rewMag",names(ndf))]
-ndf <-  ndf[,-grep("value",names(ndf))]
-ndf <-  ndf[,-grep("ID",names(ndf))]
-
-View(ndf)
-# ndf$DRS_TOTAL <- -ndf$DRS_TOTAL
-# ndf$WTAR_SCALED_SCORE <- -ndf$WTAR_SCALED_SCORE
-# ndf$percent_corr_fMRI <- -ndf$percent_corr_fMRI
-
-cormat <- cor(ndf, use = "complete.obs")
-# order <- corrMatOrder(cormat, order="AOE")
-# rcormat <- cormat[order,order]
-corrplot(cormat, type = "upper", order = "hclust", tl.cex = 0.9)
-all.pca = prcomp(na.omit(ndf),scale = TRUE)
-summary(all.pca)
-plot(all.pca,type = 'l')
-ggbiplot(all.pca, choices = 2:3, varname.size = 2)
 
 
 
@@ -146,6 +124,8 @@ mag_pcas <- get_pca_ind(mag.pca)
 hdf$mag1 <- mag_pcas$coord[,1]
 
 
+hdf_corr <- hdf[,2:9]
+
 
 #motor
 mot_rois <-  hdf[,grep("motor_",names(hdf),TRUE)]
@@ -159,6 +139,39 @@ plot(mot.pca,type = 'l')
 ggbiplot(mot.pca)
 
 
+nums <- sapply(hdf, is.numeric)
+ndf <- hdf[ , nums]
+View(ndf)
+ndf <-  ndf[,-grep("motor",names(ndf))]
+View(ndf)
+ndf <-  ndf[,-grep("rewMag",names(ndf))]
+ndf <-  ndf[,-grep("value",names(ndf))]
+ndf <-  ndf[,-grep("ID",names(ndf))]
+ndf <-  ndf[,-grep("before",names(ndf))]
+ndf <-  ndf[,-grep("after",names(ndf))]
+ndf <-  ndf[,-grep("_NONPLAN",names(ndf))]
+ndf <-  ndf[,-grep("_MOTOR",names(ndf))]
+ndf <-  ndf[,-grep("_COG",names(ndf))]
+
+
+View(ndf)
+# ndf$DRS_TOTAL <- -ndf$DRS_TOTAL
+# ndf$WTAR_SCALED_SCORE <- -ndf$WTAR_SCALED_SCORE
+# ndf$percent_corr_fMRI <- -ndf$percent_corr_fMRI
+
+cormat <- cor(ndf, use = "complete.obs")
+# order <- corrMatOrder(cormat, order="AOE")
+# rcormat <- cormat[order,order]
+corrplot(cormat, type = "upper", order = "hclust", tl.cex = 1.2)
+all.pca = prcomp(na.omit(ndf),scale = TRUE)
+summary(all.pca)
+plot(all.pca,type = 'l')
+ggbiplot(all.pca, choices = 2:3, varname.size = 2)
+
+# look at partial correlations controlling for age
+
+cormat <- partial.r(ndf,c(1:13,15:19),c(14))
+corrplot(cormat, type = "upper", order = "hclust", tl.cex = 1.2)
 
 
 
