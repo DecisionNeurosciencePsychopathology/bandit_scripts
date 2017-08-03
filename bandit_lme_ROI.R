@@ -1,6 +1,6 @@
 #  related ROI-level beta coefficients from the learned value and magnitude maps to behavior and traits
 
-setwd("/Users/localadmin/Google Drive/skinner/projects_analyses/Project Bandit/R")
+setwd("~/Box Sync/skinner/projects_analyses/Project Bandit/R")
 library(readr)
 library(lme4)
 library(ggplot2)
@@ -18,11 +18,12 @@ library(ggbiplot)
 library(corrplot)
 library(lsmeans)
 library(factoextra)
+library(ggfortify)
 
 #load(file="dataframe_for_entropy_analysis_Oct2016.RData")
 #this contains data with 24 basis functions and post-Niv learning rule
 # load(file="dataframe_for_entropy_analysis_Nov2016.RData")
-bdf <- read_csv("~/Google Drive/skinner/projects_analyses/Project Bandit/R/bandit_long_table.csv",
+bdf <- read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit_long_table.csv",
 col_types = cols(`�..ID` = col_skip()))
 bdf[[37]] <- NULL
 View(bdf)
@@ -77,7 +78,7 @@ View(sdf)
 
 #value
 val_rois <-  hdf[,grep("value",names(hdf),TRUE)]
-val_rois <- val_rois[,-grep("ACC",names(val_rois))]
+#val_rois <- val_rois[,-grep("ACC",names(val_rois))]
 cormat <- (cor(val_rois))
 corrplot(cormat, order = "hclust", type = "upper")
 value.pca = prcomp((val_rois),scale = TRUE)
@@ -91,9 +92,11 @@ hdf$val4 <- value_pcas$coord[,4]
 summary(value.pca)
 plot(value.pca,type = 'l')
 
-
 plot(sort(value.pca$rotation[,1]),xaxt = "n", ann = FALSE)
 axis(1, at = 1:27, labels=names(sort(value.pca$rotation[,1])), las = 2)
+
+autoplot(value.pca, loadings = TRUE, loadings.colour = 'blue',
+         loadings.label = TRUE, loadings.label.size = 3)
 
 plot(sort(value.pca$rotation[,2]),xaxt = "n", ann = FALSE)
 axis(1, at = 1:27, labels=names(sort(value.pca$rotation[,2])), las = 2)
@@ -166,7 +169,7 @@ corrplot(cormat, type = "upper", order = "hclust", tl.cex = 1.2)
 all.pca = prcomp(na.omit(ndf),scale = TRUE)
 summary(all.pca)
 plot(all.pca,type = 'l')
-ggbiplot(all.pca, choices = 2:3, varname.size = 2)
+ggbiplot(all.pca, choices = 3:4, varname.size = 2)
 
 # look at partial correlations controlling for age
 
@@ -245,7 +248,7 @@ anova(m1,m2)
 
 # add multinom analyses looking at how magnitude of reward influences choice probability (nnet package)
 library(readr)
-trialwise_stay_switch_subj_responses <- read_csv("~/Google Drive/skinner/projects_analyses/Project Bandit/R/trialwise_stay_switch_subj_responses.csv")
+trialwise_stay_switch_subj_responses <- read_csv("~/Dropbox/skinner/projects_analyses/Project Bandit/R/trialwise_stay_switch_subj_responses.csv")
 sw <- trialwise_stay_switch_subj_responses
 sw$reward <- as.factor(sw$reward)
 
@@ -279,6 +282,12 @@ plot(ls_sm2_1, type ~ stay, horiz=F,ylab = "logit(p_stay)", xlab = "Current magn
 # plot trialwise choice probability
 
 ggplot(subset(df), aes(x=trial, y=probA)) + stat_smooth(method="loess") + theme_gray(base_size=20) #+ facet_wrap(~msplit) #geom_jitter(alpha=0.2) +
+
+
+vdf <- hdf[,]
+
+ndf <-  ndf[,-grep("rewMag",names(ndf))]
+
 
 rdf <- merge(hdf,sw, by = "ID", all.x = TRUE)
 rdf$trial_sc <- scale(rdf$Trial)
