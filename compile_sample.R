@@ -22,11 +22,21 @@ library(doBy)
 library(xtable)
 library(corrplot)
 library(readxl)
+#fmri
+#fmri_bandit_demos <- read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit_demos_8_3_17/fmri_bandit_demos.csv")
+#f <- fmri_bandit_demos
 
-fmri_bandit_demos <- read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit_demos_8_3_17/fmri_bandit_demos.csv")
-f <- fmri_bandit_demos
+#all
+f <- read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit_demos_8_3_17/all_bandit_demos.csv")
+
+
 f$COMMENT[f$COMMENT=="DEPRESSION-IDEATOR"] <- "IDEATOR"
+f$COMMENT[f$COMMENT=="IDEATOR-ATTEMPTER"] <- "ATTEMPTER"
+
+
 describeBy(f$LEARNAGE, group = f$COMMENT)
+describeBy(f$PROTECT2AGE, group = f$COMMENT)
+
 describe(f$COMMENT)
 
 hist(f$LEARNAGE[f$COMMENT=="CONTROL"])
