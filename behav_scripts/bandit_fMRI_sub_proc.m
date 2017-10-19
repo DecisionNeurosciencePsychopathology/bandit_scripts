@@ -33,6 +33,9 @@ else
     trial_filter = ones(length(b.protocol_type),1);
 end
 
+out.choice_numeric_unfiltered=b.chosen_stim; %Save chosen stim relic
+out.trial_filter = trial_filter; %Save the trial filter
+
 b=filter_trials(b,trial_filter);
 design_struct=filter_trials(design_struct,trial_filter);
 
@@ -108,6 +111,9 @@ out.errors.after.perseverative = ...
 
 % count the number of trials after the reversal until the first stim C is chosen
 out.counts_to_first_C = countTrialsToStim(out.stim_choice(151:end),'C');
+
+%Save b struct in out
+out.b=b;
 
 % save individual file
 save(sprintf('subjects/%d.mat',id),'out');

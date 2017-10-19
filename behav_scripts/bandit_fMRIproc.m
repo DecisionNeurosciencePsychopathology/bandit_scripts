@@ -67,6 +67,10 @@ for sub=1:length(numlist)
         ball.behav(sub).above_chance_diff = s.above_chance_diff;
         ball.behav(sub).delta_index       = s.delta_index;
         
+        %Added in unfiltered data just in case
+        ball.behav(sub).choice_numeric_unfiltered = s.choice_numeric_unfiltered;
+        ball.behav(sub).trial_filter = s.trial_filter;
+        
         % TODO: add routine for 'last_updated' vs. 'last_checked'
         ball.last_updated = datestr(now,'yyyy-mm-dd HH:MM:SS');
         

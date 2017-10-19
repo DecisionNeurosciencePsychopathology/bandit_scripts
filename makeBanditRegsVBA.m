@@ -8,10 +8,7 @@ dirs=dir('subjects');
 addpath('vba\')
 addpath('behav_scripts\')
 
-%Load the sceptic config files and initialize the tracking data.
-%As a new user you will have to create the config files (see
-%https://github.com/DecisionNeurosciencePsychopathology/temporal_instrumental_agent
-%for more help) & set the paths to said file.
+%Initialize the tracking data.
 task_data=initialize_task_tracking_data('bandit');
 
 %if directories do not exist create them

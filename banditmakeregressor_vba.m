@@ -115,6 +115,7 @@ b.left = (b.stim_RESP==7);
 [b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPosPEs',out.suffStat.PEchosen_pos',0,b);
 [b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenNegPEs',out.suffStat.PEchosen_neg',0,b);
 [b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEs',out.suffStat.PEchosen',0,b);
+[b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEsZscored',zscore(out.suffStat.PEchosen)',0,b); %Zscored PEs
 %[b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEs_standardized',out.suffStat.PEchosen_standardized',0,b);
 [b.stim_times.pospes_fsl,b.stim_times.pospes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'posPEs',out.suffStat.PEplus',0,b);
 [b.stim_times.negpes_fsl,b.stim_times.negpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'negPEs',out.suffStat.PEminus',0,b);
@@ -128,6 +129,7 @@ plusMinusPE=(out.suffStat.PEplus+out.suffStat.PEminus*-1)'; %Combine the two int
 
 %Different value flavor regressor
 [b.stim_times.valchosen_fsl,b.stim_times.valchosen_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valuePlus1DiffFeedbackAligned_chosen',out.suffStat.vtplus1_chosen_diff',0,b);
+[b.stim_times.valchosen_fsl,b.stim_times.valchosen_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valuePlus1DiffFeedbackAligned_chosen_Zscored',zscore(out.suffStat.vtplus1_chosen_diff)',0,b); %Zscored value
 
 % Stake vector
 [b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'stakeFeedbackAligned',out.suffStat.stake',0,b);
