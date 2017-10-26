@@ -22,11 +22,13 @@ library(doBy)
 library(xtable)
 library(corrplot)
 library(readxl)
+library(readr)
 #fmri
 #fmri_bandit_demos <- read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit_demos_8_3_17/fmri_bandit_demos.csv")
 #f <- fmri_bandit_demos
 
 #all
+
 f <- read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit_demos_8_3_17/all_bandit_demos.csv")
 
 
