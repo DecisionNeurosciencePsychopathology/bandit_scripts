@@ -159,6 +159,7 @@ end
 % code missed responses
 b.missed_responses = ( b.stim_RT == 0 );
 
+
 b.sub_proc = bandit_fMRI_sub_proc(id, b, design_struct);
 
 % Create the reward stake vector
@@ -214,6 +215,10 @@ prefix=cellfun(@(x) x(1:4), b.protocol_type, 'UniformOutput', false);
 myst_index = cell2mat(cellfun(@(x) isequal(x,myst_cens), prefix, 'UniformOutput', false));
 comp_index = cell2mat(cellfun(@(x) isequal(x,comp_cens), prefix, 'UniformOutput', false));
 %b.stim_RT(comp_index)=0; %remove computer trials from choice
+
+%Save the myst and comp indexs for regs and info
+b.myst_index = myst_index;
+b.comp_index = comp_index;
 
 %For long format data file
 b.stakeVec_filtered=b.stakeVec;

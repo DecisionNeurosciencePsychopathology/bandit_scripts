@@ -8,12 +8,18 @@ function  out = bandit_fMRI_sub_proc(id, b, design_struct)
 % process behavioral data from variable-schedule 3-armed bandit task
 % more details at: http://bit.ly/HvBdby
 
+% %If b is an empty string get it from the read in function --
+% bandit_vba_read_in_data calls bandit_fMRI_sub_proc
+% if strcmpi(b,'')
+%     b = bandit_vba_read_in_data( 'id',id,'data_dir','subjects');
+% end
+
 %Decide which trials you want to filter, this only applys to the data
 %structure in the subjects dir
 
 filter_comp_only=0; %Filter only the computer trials
 filter_myst_only=0; %Filter only the mystery trials
-filter_myst_and_comp=1; %Filter both comp and myst trials
+filter_myst_and_comp=0; %Filter both comp and myst trials
 
 if filter_comp_only
     %REMOVE THE BLODDY COMPUTER TRIALS!!!
@@ -30,14 +36,19 @@ elseif filter_myst_and_comp
     trial_filter = trial_filter_comp==trial_filter_myst;
 else
     fprintf('Not filtering any trials!\n')
-    trial_filter = ones(length(b.protocol_type),1);
+    %trial_filter = ones(length(b.protocol_type),1);
+    trial_filter = ~isnan(design_struct.Arew);
 end
 
 out.choice_numeric_unfiltered=b.chosen_stim; %Save chosen stim relic
 out.trial_filter = trial_filter; %Save the trial filter
 
-b=filter_trials(b,trial_filter);
-design_struct=filter_trials(design_struct,trial_filter);
+if (filter_myst_and_comp + filter_myst_only + filter_comp_only > 0)
+    b=filter_trials(b,trial_filter);
+    design_struct=filter_trials(design_struct,trial_filter);
+else
+    design_struct=filter_trials(design_struct,trial_filter);
+end
 
 
 %Grab RT for future use
@@ -246,7 +257,9 @@ prob_switch          = false(size(stim_choice));
 spont_switch         = false(size(stim_choice));
 erratic_spont_switch = false(size(stim_choice));
 noncat_err           = false(size(stim_choice));
-explore_switch       = nan(size(stim_choice));
+%Why was this nan before?
+%explore_switch       = nan(size(stim_choice));
+explore_switch       = false(size(stim_choice));
 
 % calculate running correct response count
 count = 0; running_sum = zeros(size(stim_choice));
@@ -299,10 +312,12 @@ for error_n = find(q_error');
 
                         % subject probably made the switch because in the past
                         % it delivered reward consistenly enough when chosen
-                        explore_switch(error_n) = 1;
-                    else
-                        explore_switch(error_n) = 0;
-                    end
+%                         explore_switch(error_n) = 1;
+                          explore_switch(error_n) = true;
+
+%                     else
+%                         explore_switch(error_n) = 0;
+                     end
                 end
             end
         else
