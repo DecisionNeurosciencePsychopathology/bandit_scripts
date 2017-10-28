@@ -8,7 +8,7 @@ library(dplyr)
 library(tidyr)
 library(psych)
 library(gdata)
-source(file.path(getMainDir(), "Miscellaneous", "Global_Functions.R"))
+# source(file.path(getMainDir(), "Miscellaneous", "Global_Functions.R"))
 library(R.matlab)
 library(xtable)
 library(Hmisc)
@@ -108,8 +108,8 @@ plot(sort(value.pca$rotation[,4]),xaxt = "n", ann = FALSE)
 axis(1, at = 1:27, labels=names(sort(value.pca$rotation[,4])), las = 2)
 
 
-ggbiplot(value.pca, choices = 1:2)
-ggbiplot(value.pca, choices = 3:4)
+# ggbiplot(value.pca, choices = 1:2)
+# ggbiplot(value.pca, choices = 3:4)
 
 
 #magnitude
@@ -213,7 +213,7 @@ anova(mm1,mm2)
 
 
 
-summary(m2 <- lmer(Beta ~ ROI + BIS_NONPLAN + (1|ID), data = ofc_mag))
+summary(m2 <- lmer(Beta ~ ROI*BIS_NONPLAN + (1|ID), data = ofc_mag))
 car::Anova(m2)
 
 summary(m2 <- lmer(Beta ~ ROI + BIS_NONPLAN + (1|ID), data = ofc_mag))
@@ -228,7 +228,7 @@ car::Anova(m1)
 lv <- bdf[bdf$signal=="valu",]
 boxplot(Beta~ROI, data=lv, varwidth=TRUE, notch=TRUE, main="Beta", xlab="ROI")
 
-summary(m1 <- lmer(Beta ~ ROI* + (1|ID), data = mag))
+summary(m1 <- lmer(Beta ~ ROI + (1|ID), data = mag))
 car::Anova(m1)
 
 #start building a model for double dissociation of signals
@@ -248,7 +248,7 @@ anova(m1,m2)
 
 # add multinom analyses looking at how magnitude of reward influences choice probability (nnet package)
 library(readr)
-trialwise_stay_switch_subj_responses <- read_csv("~/Dropbox/skinner/projects_analyses/Project Bandit/R/trialwise_stay_switch_subj_responses.csv")
+trialwise_stay_switch_subj_responses <- read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/trialwise_stay_switch_subj_responses.csv")
 sw <- trialwise_stay_switch_subj_responses
 sw$reward <- as.factor(sw$reward)
 
@@ -260,8 +260,12 @@ View(sw)
 sw$stay <- sw$switch_vector
 sw$magf_lag <- as.factor(sw$mag_lag)
 sw$magf <- as.factor(sw$Magnitude)
+sw$trial_scaled <- scale(sw$Trial)
 
-sm1 <- glmer(stay ~ rew_lag*magf_lag + Trial + (1|ID), family = binomial(), data = sw)
+
+
+
+sm1 <- glmer(stay ~ rew_lag*magf_lag + trial_scaled + (1|ID), family = binomial(), data = sw)
 summary(sm1)
 car::Anova(sm1)
 # ls_sm1 <- lsmeans(sm1,"rew_lag", by = "mag_lag", at = list(mag_lag = c(10,25,50)))
@@ -269,7 +273,7 @@ ls_sm1 <- lsmeans(sm1,"rew_lag", by = "magf_lag")
 
 plot(ls_sm1, type ~ stay, horiz=F,ylab = "logit(p_stay)", xlab = "reinforcement")
 
-sm2 <- glmer(stay ~ rew_lag*magf_lag + rew_lag*magf + Trial + (1|ID), family = binomial(), data = sw)
+sm2 <- glmer(stay ~ rew_lag*magf_lag + rew_lag*magf + trial_scaled + (1|ID), family = binomial(), data = sw)
 summary(sm2)
 car::Anova(sm2)
 # ls_sm1 <- lsmeans(sm1,"rew_lag", by = "mag_lag", at = list(mag_lag = c(10,25,50)))
@@ -279,9 +283,27 @@ plot(ls_sm2, type ~ stay, horiz=F,ylab = "logit(p_stay)", xlab = "reinforcement"
 ls_sm2_1 <- lsmeans(sm2,"magf")
 plot(ls_sm2_1, type ~ stay, horiz=F,ylab = "logit(p_stay)", xlab = "Current magnitude")
 
+# see if they switch to 3rd-best option pre-reversal after large rewards
+
+prerev <- subset(sw,Trial<150)
+
+em1 <- glmer(C_Choice ~ rew_lag*magf_lag + trial_scaled + (1|ID), family = binomial(), data = prerev)
+summary(em1)
+car::Anova(em1)
+ls_em1 <- lsmeans(em1,"rew_lag", by = "magf_lag")
+plot(ls_em1, type ~ stay, horiz=F,ylab = "logit(p_C_choice)", xlab = "reinforcement")
+
+em2 <- glmer(B_Choice ~ rew_lag*magf_lag + trial_scaled + (1|ID), family = binomial(), data = prerev)
+summary(em2)
+car::Anova(em2)
+ls_em2 <- lsmeans(em2,"rew_lag", by = "magf_lag")
+plot(ls_em2, type ~ stay, horiz=F,ylab = "logit(p_B_choice)", xlab = "reinforcement")
+
+
+
 # plot trialwise choice probability
 
-ggplot(subset(df), aes(x=trial, y=probA)) + stat_smooth(method="loess") + theme_gray(base_size=20) #+ facet_wrap(~msplit) #geom_jitter(alpha=0.2) +
+ggplot(sw, aes(x=Trial, y=C_Choice)) + stat_smooth(method="loess") + theme_gray(base_size=20) #+ facet_wrap(~msplit) #geom_jitter(alpha=0.2) +
 
 
 vdf <- hdf[,]
