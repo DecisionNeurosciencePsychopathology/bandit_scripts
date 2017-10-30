@@ -126,7 +126,7 @@ plot(ls_im2a, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab 
 
 anova(im2,im1)
 
-im2post <- glmer(stay ~ reinf_lag*stake_lag + stake + trial_scaled + group1245*reinf_lag + group1245*trial_scaled + 
+im2post <- glmer(stay ~ reinf_lag*stake_lag + stake + trial_scaled + Group*reinf_lag + Group*trial_scaled + 
                    (1|ID), family = binomial(), data = postrev, nAGQ = 0)
 summary(im2post)
 car::Anova(im2post)
@@ -151,10 +151,32 @@ im4a <- glmer(stay ~ reinf_lag*stake_lag + stake + trial_scaled + Group*reinf_la
                (1|ID), family = binomial(), data = postrev, nAGQ = 0)
 
 summary(im4)
-car::Anova(im4)
+car::Anova(im4a)
 ls_im4 <- lsmeans(im4,"trial_scaled", by = "Group", at = list(trial_scaled=c(0,1,2)))
 plot(ls_im4, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Time after reversal")
 cld(ls_im4)
+
+# do they win less?
+rm1 <- glmer(reinf ~  Group*trial_scaled + 
+               (1|ID), family = binomial(), data = bdf, nAGQ = 0)
+summary(rm1)
+car::Anova(rm1)
+
+# do they tend to stick with B?
+bm1 <- glmer(multinomial_choice=="B" ~  Group*trial_scaled + 
+               (1|ID), family = binomial(), data = postrev)
+summary(bm1)
+car::Anova(bm1)
+ls_bm1 <- lsmeans(bm1,"trial_scaled", by = "Group", at = list(trial_scaled=c(0,1,2)))
+plot(ls_bm1, type ~ response, horiz=F,ylab = "logit(probability of chosing B)", xlab = "Time after reversal")
+
+
+# after reversal
+rm2 <- glmer(reinf ~  Group*trial_scaled + 
+               (1|ID), family = binomial(), data = postrev, nAGQ = 0)
+summary(rm2)
+car::Anova(rm2)
+
 
 # make pretty plot for presentation/future paper
 library(multcompView)
@@ -187,7 +209,7 @@ ggplot(CLD, aes(x     = trial_scaled,
   facet_wrap( ~ Group, nrow = 1) +
   theme_bw() +
   theme(axis.title   = element_text(face = "bold"), axis.text    = element_text(face = "bold"), plot.caption = element_text(hjust = 0)) +
-  ylab("Log-probability of repeating the choice") +
+  ylab("Logit probability of repeating the choice") +
   xlab("Time after reversal (1 = 50 trials)") +
   scale_x_continuous(breaks=c(0,1,2)) +
   ggtitle ("Behavior after reversal",
@@ -229,6 +251,33 @@ pdf(file = "attempters exploring.pdf", width = 10, height = 6)
 ggplot(na.omit(bdf), aes(x=Trial, y=stay_p, color = Group)) + stat_smooth(method="loess") + theme_gray(base_size=20) + ylab("Probability of staying with the same choice") +
 facet_wrap(~past_rew) #geom_jitter(alpha=0.2) +
 dev.off()
+
+
+# plot trialwise reward
+pdf(file = "bandit wins by group.pdf", width = 10, height = 6)
+ggplot(na.omit(bdf), aes(x=Trial, y=correct_incorrect, color = Group)) + stat_smooth(method="loess") + theme_gray(base_size=20) + ylab("Probability of winning") 
+dev.off()
+
+# plot choice
+bdf$choiceA[bdf$multinomial_choice=="A"] <- 1
+bdf$choiceB[bdf$multinomial_choice=="B"] <- 1
+bdf$choiceC[bdf$multinomial_choice=="C"] <- 1
+bdf$choiceA[bdf$multinomial_choice!="A"] <- 0
+bdf$choiceB[bdf$multinomial_choice!="B"] <- 0
+bdf$choiceC[bdf$multinomial_choice!="C"] <- 0
+
+cdf = melt(bdf, na.rm = FALSE, measure.vars = c("choiceA","choiceB","choiceC"))
+cdf$option <- cdf$variable
+cdf$choice <- cdf$value
+View(cdf)
+
+ggplot(na.omit(cdf), aes(x=Trial, y=choice, color = option)) + stat_smooth(method="loess") + theme_gray(base_size=20) + ylab("Choice probability") 
+
+ggplot(na.omit(cdf), aes(x=Trial, y=choice, color = Group)) + stat_smooth(method="loess") + theme_gray(base_size=20) + ylab("Choice probability") +
+  facet_wrap(~option) #geom_jitter(alpha=0.2) +
+
+ggplot(na.omit(cdf), aes(x=Trial, y=choice, color = option)) + stat_smooth(method="loess") + theme_gray(base_size=20) + ylab("Choice probability") +
+  facet_wrap(~Group) #geom_jitter(alpha=0.2) +
 
 save(list = ls(all.names = TRUE),file = "bandit1.RData")
 
