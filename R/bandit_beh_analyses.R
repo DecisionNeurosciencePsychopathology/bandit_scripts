@@ -549,6 +549,10 @@ rdf$stay_p[!rdf$stay] <- 0
 rdf$Group <- recode(rdf$Group1245, `1` = "Controls", `2` = "Depressed", `4` = "Ideators", `5` = "Attempters")
 contrasts(rdf$Group) <- contr.treatment(levels(rdf$Group),
                                         base=which(levels(rdf$Group) == 'Attempters'))
+rdf$GroupLeth <- recode(rdf$Group12467, `1` = "Controls", `2` = "Depressed", `4` = "Ideators", `6` = "LL Attempters", `7` = "HL Attempters")
+contrasts(rdf$GroupLeth) <- contr.treatment(levels(rdf$GroupLeth),
+                                        base=which(levels(rdf$GroupLeth) == 'HL Attempters'))
+
 rdf$past_rew <- recode(rdf$reinf_lag, `0` = "After omission", `1` = "After reward")
 rdf$reinf_n <- as.numeric(rdf$correct_incorrect)
 
@@ -569,7 +573,7 @@ plot(ls_rem1, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab 
 
 # covary for age
 rem2 <- glmer(stay ~ past_rew*Group*trial_scaled + past_rew*age_scaled*trial_scaled +
-                (1|ID), family = binomial(), data = rdf)
+                (1|ID), family = binomial(), data = rdf,nAGQ = 0)
 summary(rem2)
 car::Anova(rem2)
 ls_rem2 <- lsmeans(rem2,"Group", by = "past_rew")
@@ -637,13 +641,18 @@ car::Anova(rvm2)
 ls_rvm2 <- lsmeans(rvm2,"v_chosen_lag", by = "Group", at = list(v_chosen_lag=c(0.01,0.50,0.99)))
 plot(ls_rvm2, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Value")
 
-# what about lethality
-lrvm2 <- glmer(stay ~  Group12467*v_chosen_lag + Group12467*trial_scaled + 
+# what about lethality, controlling for age
+lrvm2 <- glmer(stay ~  Group12467*v_chosen_lag + Group12467*trial_scaled + age_scaled*v_chosen_lage + age_scaled*trial_scaled +
                 (1|ID), family = binomial(), data = rdf, nAGQ = 0)
 summary(lrvm2)
 car::Anova(lrvm2)
-ls_rvm2 <- lsmeans(rvm2,"v_chosen_lag", by = "Group", at = list(v_chosen_lag=c(0.01,0.50,0.99)))
-plot(ls_rvm2, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Value")
+ls_lrvm2 <- lsmeans(lrvm2,"v_chosen_lag", by = "Group12467", at = list(v_chosen_lag=c(0.01,0.50,0.99)))
+plot(ls_lrvm2, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Value")
+
+agelrvm2 <- glmer(stay ~  age_scaled*v_chosen_lage + age_scaled*trial_scaled +
+                 (1|ID), family = binomial(), data = rdf, nAGQ = 0)
+
+
 
 # do attempters have lower max value overall? Actually, NS higher
 rvcheck1 <- lmer(value_max ~ trial_scaled + Group + (1|ID), data = rdf)
@@ -679,10 +688,62 @@ View(rcdf)
 
 # split chosen value into quartiles for plotting
 
-xs=quantile(rdf$value_chosen,c(0,1/4,1/2,3/4,1))
+xs=quantile(rdf$value_chosen,c(.1, .2, .3, .4, .5, .6, .7, .8, .9, .95, 1))
 xs[1]=xs[1]-.00005
-rdf <- rdf %>% mutate(v_chosen_cat =cut(value_chosen, breaks=xs, labels=c("low","mid-low","mid-hi","high")))
+rdf <- rdf %>% mutate(v_chosen_cat =cut(value_chosen, breaks=xs, labels=c("d1", "d2", "d3","d4", "d5", "d6","d7", "d8", "d9","d10")))
 boxplot(rdf$value_chosen~rdf$v_chosen_cat,col=3:5)
+
+# redo the analysis with binned value
+rvmb <- glmer(stay ~  Group*v_chosen_cat + Group*trial_scaled + 
+                (1|ID), family = binomial(), data = rdf, nAGQ = 0)
+summary(rvmb)
+car::Anova(rvmb)
+ls_rvmb <- lsmeans(rvmb,"v_chosen_cat", by = "Group")
+plot(ls_rvmb, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Value (deciles)")
+
+leastsquare = lsmeans(rvmb, pairwise ~ v_chosen_cat:Group,adjust="tukey")
+CLD = cld(leastsquare,
+          alpha=0.05,
+          Letters=letters,
+          adjust="tukey")
+###  Remove spaces in .group  
+CLD$.group=gsub(" ", "", CLD$.group)
+
+### Plot
+pdf(file = "value on choice by group rep PRETTY.pdf",
+    width = 8,
+    height = 6)
+pd = position_dodge(0.4)    ### How much to jitter the points on the plot
+CLD$v_chosen_decile <- as.numeric((CLD$v_chosen_cat))
+ggplot(CLD, aes(x     = v_chosen_decile,
+                y     = lsmean,
+                color = Group
+)) +
+  geom_point(shape  = 15, size   = 4, position = pd) +
+  geom_errorbar(
+    aes(ymin  =  asymp.LCL,
+        ymax  =  asymp.UCL),
+    width =  0.2,  size  =  0.7, position = pd) +
+  geom_line(position = pd) +
+  # facet_wrap( ~ Group, nrow = 1) +
+  theme_bw() +
+  theme(axis.title   = element_text(face = "bold"), axis.text    = element_text(face = "bold"), plot.caption = element_text(hjust = 0)) +
+  ylab("Logit probability of repeating the choice") +
+  xlab("Chosen value") +
+  ggtitle ("Effect of value on choice by group",
+           subtitle = "Generalized linear mixed-effects model") +
+  labs(caption  = paste0(
+    "A<C: z=14.0, A<D: z=6.7, A<I: z=3.4, all p<.001\n",
+    "Boxes: LS mean.",
+    "Error bars: 95% CI, \n"),
+    hjust = 0.5) +
+  theme_bw(base_size=20) #+
+# geom_text(nudge_x = c(0.1, -0.1, 0.1, -0.1, 0.1, -0.1, -0.1, 0.1),
+#           nudge_y = c(4.5,  4.5, 4.5,  4.5, 4.5 , 4.5,  4.5, 4.5),
+#           color   = "black") +
+# geom_text(color   = "black", nudge_y = 1) #+
+# scale_color_manual(values = c("blue", "red"))
+dev.off()
 
 
 ggplot(na.omit(rcdf[,c(2,58,65,66)]), aes(x=Trial, y=choice, color = option)) + stat_smooth(method="auto") + theme_bw(base_size=20) + ylab("Choice probability") +  
@@ -704,6 +765,7 @@ ggplot(na.omit(rdf[,c(1:2,47:66)]), aes(x=Trial, y=stay_p, color = v_chosen_cat)
 
 ggplot(na.omit(rdf[,c(1:9,47:66)]), aes(x=value_chosen, y=stay_p, color = Group)) + stat_smooth(method="loess") + theme_bw(base_size=20) + labs(x = "Chosen value", y = "Probability of staying with the same choice") 
 
+ggplot(na.omit(rdf[,c(1:9,15,47:67)]), aes(x=value_chosen, y=stay_p, color = GroupLeth)) + stat_smooth(method="loess") + theme_bw(base_size=20) + labs(x = "Chosen value", y = "Probability of staying with the same choice") 
 
 # plot trialwise stay probability
 pdf(file = "attempters exploring rep.pdf", width = 10, height = 6)
