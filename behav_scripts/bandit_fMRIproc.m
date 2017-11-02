@@ -48,6 +48,7 @@ for sub=1:length(numlist)
         ball.behav(sub).errors.prob          = s.errors.prob_switch_err;
         ball.behav(sub).errors.perseverative = s.errors.perseverative;
         ball.behav(sub).errors.explore_sw    = s.errors.explore_switch;
+        ball.behav(sub).chosen_position      = s.b.stim_RESP;
         
         % save when subject responded correctly
         ball.behav(sub).stim_ACC = s.stim_ACC;
