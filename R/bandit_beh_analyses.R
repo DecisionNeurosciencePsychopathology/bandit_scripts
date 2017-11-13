@@ -40,6 +40,7 @@ sub_df$bad <- sub_df$ID==206270 | sub_df$ID==210100
 table(sub_df$bad,sub_df$group1245)
 # check missing data
 library(VIM)
+library(mice)
 missing_ind_chars = aggr(sub_df, col=mdc(1:2), numbers=TRUE, sortVars=TRUE, labels=names(sub_df), cex.axis=.7, gap=3, ylab=c("Proportion of missingness","Missingness Pattern"))
 
 # all missingness <8%, could impute
