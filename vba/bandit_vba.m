@@ -18,6 +18,9 @@ if nargin<2
 elseif nargin<3
     plot_subject =0;
     valence = 1;
+elseif nargin<8
+    %if we are fixing the parameters
+    fix_all_params = 0; %This should really really be an extrenal variable, make this happen.
 end
 
 
@@ -31,7 +34,7 @@ use_reward_vec = 0;
 [~, me] = system('whoami');
 me = strtrim(me);
 if save_results
-    file_path = 'vba_output';
+    file_path = 'vba_output/fixed_params';
 else
     error('something went wrong with the vba output dir!')
 end
@@ -74,6 +77,19 @@ g_name = @g_bandit_softmax; %Observation function
 n_t = 300; %Total number of trials
 % n_runs = 3; %3 blocks total
 n_hidden_states = 4; %Track value for each arm of the bandit + PE
+
+
+%% Fixed parameters
+if fix_all_params
+    file_path = 'vba_output/fixed_params';
+    n_theta=0;
+    n_phi=0;
+    options.inF.fixed_params=1;
+    options.inG.fixed_params=1;
+else
+    options.inF.fixed_params=0;
+    options.inG.fixed_params=0;
+end
 
 %% Load in the subject's data
 %u is 2 x ntrials where first row is actions and second row is reward
@@ -254,6 +270,9 @@ out.suffStat.vtplus1 = choices(:,2:end);
 out.suffStat.vtplus1_not_chosen=out.suffStat.vtplus1(~logical(chosen_index(:,1:end-1)))';
 out.suffStat.vtplus1_not_chosen = reshape(out.suffStat.vtplus1_not_chosen,2,length(out.suffStat.vtplus1));
 out.suffStat.vtplus1_chosen_diff=[(out.suffStat.vtplus1(logical(chosen_index(:,1:end-1)))' - mean(out.suffStat.vtplus1_not_chosen)) 0];
+
+%Create a regrssor like vtplus1 but using the max subtracted by the median - V.B.
+out.suffStat.vtplus1_max=[(max(out.suffStat.vtplus1) - median(out.suffStat.vtplus1)) 0];
 
 
 %Value chosen was normalized at one point?
