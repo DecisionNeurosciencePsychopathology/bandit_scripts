@@ -5,7 +5,7 @@ setwd("~/Box Sync/skinner/projects_analyses/Project Bandit/R")
 library(readr)
 library(lme4)
 library(ggplot2)
-library(tidyverse)
+library(dplyr)
 library(xtable)
 library(Hmisc)
 library(nnet)
@@ -34,15 +34,9 @@ sub_df$bad <- sub_df$ID==206270 | sub_df$ID==210100
 table(sub_df$bad,sub_df$group1245)
 # check missing data
 library(VIM)
-<<<<<<< HEAD
-<<<<<<< HEAD
 # missing_ind_chars = aggr(sub_df, col=mdc(1:2), numbers=TRUE, sortVars=TRUE, labels=names(sub_df), cex.axis=.7, gap=3, ylab=c("Proportion of missingness","Missingness Pattern"))
-=======
-=======
->>>>>>> 4cbb4fb515cbc7ce8675ace9670a8f43c8f6224b
 library(mice)
 missing_ind_chars = aggr(sub_df, col=mdc(1:2), numbers=TRUE, sortVars=TRUE, labels=names(sub_df), cex.axis=.7, gap=3, ylab=c("Proportion of missingness","Missingness Pattern"))
->>>>>>> 4cbb4fb515cbc7ce8675ace9670a8f43c8f6224b
 
 # all missingness <8%, could impute
 
@@ -106,16 +100,16 @@ bdf = bdf %>% group_by(ID) %>%
   mutate(h_lag = lag(H)  ) %>% ungroup()
 
 # graphical sanity checks on lagged variables, because order_by=Trial does not seem to work here
-id <-  unique(bdf$ID)[33]
-i <- bdf$ID==id
-d <- 'NA'
-d$trial <- bdf$Trial[i]
-d$stay <- bdf$stay[i]
-d$stay_lag <- bdf$stay[i]
-ggplot(bdf[i,], aes(x = Trial)) + geom_line(aes(y = bdf$value_chosen[i], color = "v_chosen")) + geom_line(aes(y = bdf$v_chosen_lag[i], color = "v_chosen_lag"))
-ggplot(bdf[i,], aes(x = Trial)) + geom_line(aes(y = bdf$value_max[i], color = "v_max")) + geom_line(aes(y = bdf$v_max_lag[i], color = "v_max_lag"))
-ggplot(bdf[i,], aes(x = Trial)) + geom_line(aes(y = bdf$value_chosen_fixed_params[i], color = "v_chosen_f")) + geom_line(aes(y = bdf$v_chosen_lag_f[i], color = "v_chosen_lag_f"))
-ggplot(bdf[i,], aes(x = Trial)) + geom_point(aes(y = bdf$stay[i], color = "stay")) + geom_point(aes(y = bdf$stay_lag[i], color = "stay_lag"))
+# id <-  unique(bdf$ID)[33]
+# i <- bdf$ID==id
+# d <- 'NA'
+# d$trial <- bdf$Trial[i]
+# d$stay <- bdf$stay[i]
+# d$stay_lag <- bdf$stay[i]
+# ggplot(bdf[i,], aes(x = Trial)) + geom_line(aes(y = bdf$value_chosen[i], color = "v_chosen")) + geom_line(aes(y = bdf$v_chosen_lag[i], color = "v_chosen_lag"))
+# ggplot(bdf[i,], aes(x = Trial)) + geom_line(aes(y = bdf$value_max[i], color = "v_max")) + geom_line(aes(y = bdf$v_max_lag[i], color = "v_max_lag"))
+# ggplot(bdf[i,], aes(x = Trial)) + geom_line(aes(y = bdf$value_chosen_fixed_params[i], color = "v_chosen_f")) + geom_line(aes(y = bdf$v_chosen_lag_f[i], color = "v_chosen_lag_f"))
+# ggplot(bdf[i,], aes(x = Trial)) + geom_point(aes(y = bdf$stay[i], color = "stay")) + geom_point(aes(y = bdf$stay_lag[i], color = "stay_lag"))
 
 
 bdf$Group <- recode(bdf$group1245, `1` = "Controls", `2` = "Depressed", `4` = "Ideators", `5` = "Attempters")
@@ -152,18 +146,11 @@ questionable_subjects <- perf$ID[perf$`mean(reinf_n)`<.4]
 udf <- bdf[!is.element(bdf$ID, questionable_subjects),]
 
 # RL model parameters across groups
-ggplot(data = sub_df,aes(x = alpha_win,y = alpha_loss, color = Group)) + geom_jitter()
-ggplot(data = sub_df,aes(x = decay,y = beta, color = Group)) + geom_point()
-ggplot(data = sub_df,aes(y = decay,x = Group)) + geom_boxplot()
-
-ggplot(data = sub_df,aes(x = alpha_win,y = alpha_loss, color = Group)) + geom_jitter()
-ggplot(data = sub_df,aes(x = decay,y = beta, color = Group)) + geom_point()
-
-ggplot(data = sub_df,aes(y = alpha_win,x = Group)) + geom_boxplot()
-ggplot(data = sub_df,aes(y = alpha_loss,x = Group)) + geom_boxplot()
-ggplot(data = sub_df,aes(y = decay,x = Group)) + geom_boxplot()
-ggplot(data = sub_df,aes(y = beta,x = Group)) + geom_boxplot()
-ggplot(data = sub_df,aes(y = L,x = Group)) + geom_boxplot()
+ggplot(data = sub_df,aes(y = alpha_win,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+ggplot(data = sub_df,aes(y = alpha_loss,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+ggplot(data = sub_df,aes(y = decay,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+ggplot(data = sub_df,aes(y = beta,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+ggplot(data = sub_df,aes(y = L,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
 
 
 pm1 <- manova(cbind(alpha_win, alpha_loss, decay, beta) ~ Group, data = sub_df)
@@ -173,17 +160,14 @@ anova(pm1)
 pm2 <- lm(alpha_win ~ Group, data = sub_df)
 summary(pm2)
 anova(pm2)
-ggplot(data = sub_df,aes(y = alpha_win,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
 
 pm3 <- lm(alpha_loss ~ Group, data = sub_df)
 summary(pm3)
 anova(pm3)
-ggplot(data = sub_df,aes(y = alpha_loss,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
 
 pm4 <- lm(decay ~ Group, data = sub_df)
 summary(pm4)
 anova(pm4) #*
-ggplot(data = sub_df,aes(y = decay,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
 
 pm5 <- lm(beta ~ Group, data = sub_df)
 summary(pm5)
@@ -193,7 +177,6 @@ ggplot(data = sub_df,aes(y = beta,x = Group, color = Group)) + geom_boxplot() + 
 pm6 <- lm(L ~ Group, data = sub_df)
 summary(pm6)
 anova(pm6)
-ggplot(data = sub_df,aes(y = L,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
 
 
 prerevA <- subset(bdf,Trial<150 & choice_lag=="A")
@@ -344,36 +327,38 @@ vm1d <- glmer(stay ~ v_chosen_lag*stake_lag*stake + v_chosen_lag*Group + trial_s
                 (1|ID), family = binomial(), data = bdf,   nAGQ = 0)
 summary(vm1d)
 car::Anova(vm1d)
+# the addition of group improves the model
 anova(vm1d,vm1c)
 
+# include trial as random
+vm1r <- glmer(stay ~ v_chosen_lag*stake_lag*stake + v_chosen_lag*Group + trial_scaled*stay_lag +
+                (1 + trial_scaled|ID), family = binomial(), data = bdf,   nAGQ = 0)
+summary(vm1r)
+car::Anova(vm1r)
+plot(allEffects(vm1r))
+# the addition of group improves the model
+anova(vm1d,vm1r)
 
 
-# use v_chosen instead of reinf
-<<<<<<< HEAD
-<<<<<<< HEAD
-vm2 <- glmer(stay ~ v_chosen_lag*stake_lag + stake + trial_scaled + Group*v_chosen_lag + Group*trial_scaled +
-               # (1 + v_chosen_lag + trial_scaled + stake|ID), family = binomial(), data = bdf,   glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
-               (1|ID), family = binomial(), data = bdf,   nAGQ =  = 0)
-
-               summary(vm2)
-=======
-=======
->>>>>>> 4cbb4fb515cbc7ce8675ace9670a8f43c8f6224b
-vm2 <- glmer(stay ~ stay_lag + stake + stake_lag + v_chosen_lag + trial_scaled + v_chosen_lag*stake_lag + stake + Group*trial_scaled + Group*v_chosen_lag + stay_lag +
+# reasonably simple model with plausible predictors
+vm2 <- glmer(stay ~ stay_lag + stake + stake_lag + v_chosen_lag + trial_scaled + v_chosen_lag*stake_lag + stake + Group*v_chosen_lag + stay_lag +
                (1|ID), family = binomial(), data = bdf,   nAGQ = 0)
 summary(vm2)
->>>>>>> 4cbb4fb515cbc7ce8675ace9670a8f43c8f6224b
 car::Anova(vm2)
 ls_vm2 <- lsmeans(vm2,"v_chosen_lag", by = "Group", at = list(v_chosen_lag=c(0.01,0.50,0.99)))
 plot(ls_vm2, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Value")
 plot(allEffects( vm2))
 
 # what about vmax?
-vm2m <- glmer(stay ~ v_max_lag*stake_lag + stake + Group*trial_scaled + Group*v_max_lag + stay_lag +
+vm2m <- glmer(stay ~ stay_lag + stake + stake_lag + v_max_lag + trial_scaled + v_max_lag*stake_lag + stake + Group*trial_scaled + Group*v_max_lag + stay_lag +
                (1|ID), family = binomial(), data = bdf,   nAGQ = 0)
 summary(vm2m)
 car::Anova(vm2m)
 plot(allEffects(vm2m))
+
+# v_chosen predicts astronomically better than v_max: AIC 15983 vs.22334
+# forget v_max
+anova(vm2m,vm2)
 
 ls_vm2 <- lsmeans(vm2,"v_chosen_lag", by = "Group", at = list(v_chosen_lag=c(0.01,0.50,0.99)))
 plot(ls_vm2, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Value")
@@ -502,8 +487,8 @@ dev.off()
 # car::Anova(im2post)
 # ls_im2post <- lsmeans(im2post,"trial_scaled", by = "Group", at = list(trial_scaled=c(0,1,2)))
 # plot(ls_im2post, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Time after reversal")
-# 
-# 
+#
+#
 # # what about controlling for IQ and EXIT?
 # im3 <- glmer(stay ~ reinf_lag*stake_lag + stake + trial_scaled + Group*reinf_lag + Group*trial_scaled + exit_scaled*trial_scaled + iq_scaled*trial_scaled +
 #                (1|ID), family = binomial(), data = bdf, nAGQ=0)
@@ -512,20 +497,20 @@ dev.off()
 # anova(im3, im3)
 # ls_im3 <- lsmeans(im3,"trial_scaled", by = "Group", at = list(trial_scaled=c(-1.5,0,1.5)))
 # plot(ls_im3, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Trial (early, middle, late in learning)")
-# 
+#
 # # does the post-reversal deficit stand controlling for IQ and EXIT?
 # im4 <- glmer(stay ~ reinf_lag*stake_lag + stake + trial_scaled + Group*reinf_lag + Group*trial_scaled +
 #                (1|ID), family = binomial(), data = postrev, nAGQ = 0)
 # # just a sensitivity analysis with EXIT and WTAR, because some of the scores are missing
 # im4a <- glmer(stay ~ reinf_lag*stake_lag + stake + trial_scaled + Group*reinf_lag + Group*trial_scaled + exit_scaled*trial_scaled +  iq_scaled*trial_scaled +
 #                (1|ID), family = binomial(), data = postrev, nAGQ = 0)
-# 
+#
 # summary(im4)
 # car::Anova(im4a)
 # ls_im4 <- lsmeans(im4,"trial_scaled", by = "Group", at = list(trial_scaled=c(0,1,2)))
 # plot(ls_im4, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Time after reversal")
 # cld(ls_im4)
-# 
+#
 # do they win less? No.
 rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
                (1|ID), family = binomial(), data = bdf, nAGQ = 0)
@@ -1247,7 +1232,7 @@ dev.off()
 # entropy: replication #
 ###########
 
-rvhm2 <- glmer(stay ~  v_chosen_lag*h_lag + v_chosen_lag*Group + h_lag*Group + trial_scaled + stay_lag + 
+rvhm2 <- glmer(stay ~  v_chosen_lag*h_lag + v_chosen_lag*Group + h_lag*Group + trial_scaled + stay_lag +
                 (1|ID), family = binomial(), data = rdf, nAGQ = 0)
 summary(rvhm2)
 car::Anova(rvhm2)
@@ -1256,7 +1241,7 @@ car::Anova(rvhm2)
 # plot(ls_rvhm2, horiz = F)
 # cld(ls_rvhm2)
 
-rfvhm2 <- glmer(stay ~  v_chosen_lag_f*Group + h_lag_f*Group +  v_chosen_lag_f*age_scaled + h_lag_f*age_scaled + trial_scaled + stay_lag + 
+rfvhm2 <- glmer(stay ~  v_chosen_lag_f*Group + h_lag_f*Group +  v_chosen_lag_f*age_scaled + h_lag_f*age_scaled + trial_scaled + stay_lag +
                  (1|ID), family = binomial(), data = rdf, nAGQ = 0)
 summary(rfvhm2)
 car::Anova(rfvhm2)
