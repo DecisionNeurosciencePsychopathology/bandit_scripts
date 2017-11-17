@@ -1,7 +1,6 @@
 function [df1, df2]=create_trialwise_bandit_dataset(ids)
 %This function is designed to export the bandit data contained in the .mat
 %files to csv's for analysis in R
-%EX: [df1, df2]=create_trialwise_bandit_dataset(ids(:,1));
 
 if nargin<1; ids=[]; end
 
@@ -11,7 +10,7 @@ load('C:\kod\fMRI\subjects\bandit_data.mat')
 %Load in healthy control list
 %id_list=load('hc_list.mat')
 
-%Load in the demographics
+%Load in the demographics 
 load('C:\kod\Neuropsych_preproc\matlab\tmp\demogs_data.mat');
 demog_data = data;
 clear data
@@ -24,12 +23,10 @@ if isempty(ids)
     %Grab fieldname of id struct
     foo=fieldnames(id_list);
     id_list = id_list.(foo{:});
+    
 else
     id_list=ids;
 end
-
-%If we want to add in the vba results from fixing the parameters
-merge_fixed_dataset = 1;
 
 %Create data frames as tables to be saved as csvs
 df1 = table();
@@ -37,10 +34,6 @@ df1_tmp = table();
 
 df2 = table();
 df2_tmp = table();
-
-%Save log model evidence
-out_vba_L = [];
-out_vba_L_fixed_params = [];
 
 %Loop over subjects
 for i = 1:length(ball.id)
@@ -50,9 +43,9 @@ for i = 1:length(ball.id)
         %% %--------- DF1 choices and VBA output ---------------%
         %load in data
         load(['E:\data\bandit\bandit_behav_data\' num2str(ball.id(i)) '.mat'])
-        
+               
         %Set subject's data
-        subj_data = b;
+        subj_data = b;        
         
         %Let the first column in the table be id
         df1_tmp.ID = repmat(ball.id(i),length(subj_data.sub_proc.stim_choice_numeric),1);
@@ -61,19 +54,16 @@ for i = 1:length(ball.id)
         df1_tmp.Trial = [1:length(subj_data.sub_proc.stim_choice_numeric)]';
         
         %Set multinomial choice
-        df1_tmp.multinomial_choice = cellstr(subj_data.sub_proc.stim_choice);
+        df1_tmp.multinomial_choice = cellstr(subj_data.sub_proc.stim_choice);                
         
         %Split choices into binary choice vectors (A=1, B=2, C=3)
-        %         df1_tmp.A_Choice = subj_data.choice_numeric==1;
-        %         df1_tmp.B_Choice = subj_data.choice_numeric==2;
-        %         df1_tmp.C_Choice = subj_data.choice_numeric==3;
+%         df1_tmp.A_Choice = subj_data.choice_numeric==1;
+%         df1_tmp.B_Choice = subj_data.choice_numeric==2;
+%         df1_tmp.C_Choice = subj_data.choice_numeric==3;
         df1_tmp.choice_numeric = subj_data.sub_proc.stim_choice_numeric;
         
         %If subj switched from last trial (Stay=1 Switched=0)
         %df1_tmp.switch_vector=create_switch_vector(subj_data);
-        
-        %Add Rts
-        df1_tmp.RT = subj_data.stim_RT;
         
         %Add if trial was rewarded or not
         df1_tmp.correct_incorrect = subj_data.stim_ACC;
@@ -95,54 +85,17 @@ for i = 1:length(ball.id)
         vba_file = glob(['vba_output/*' num2str(ball.id(i)) '*.mat']);
         load(vba_file{:})
         
-        %Grab log model evidence
-        out_vba_L = [out_vba_L; [ball.id(i) out.F]];
-        
         %Grab value data
-        df1_tmp.value_A_stim = posterior.muX(1,:)'; %value of A choice
-        df1_tmp.value_B_stim = posterior.muX(2,:)'; %value of B choice
-        df1_tmp.value_C_stim = posterior.muX(3,:)'; %value of C choice
-        
         df1_tmp.value_chosen = out.suffStat.value_chosen';
         df1_tmp.value_max = out.suffStat.value'; %This is the max value of each hidden state per trial
         [~,max_idx]=max(out.suffStat.muX(1:3,:));
         df1_tmp.best_value_option = max_idx';
         
-        %Entropy
-        H = calc_entropy(out);
-        df1_tmp.H = H';
-        
-        %If we want to add the fixed parameter data -- maybe think of
-        %making this a funciton if you have to merge more than 2 vba output
-        %datasets i.e. if tables can be dynamically named supply a cell
-        %list of varable names with out and posterior, or rename them after
-        if merge_fixed_dataset
-            vba_file = glob(['vba_output/fixed_params/*' num2str(ball.id(i)) '*.mat']);
-            load(vba_file{:})
-            
-            %Pull log model evidence
-            out_vba_L_fixed_params = [out_vba_L_fixed_params; [ball.id(i) out.F]];
-            
-            df1_tmp.value_A_stim_fixed_params = posterior.muX(1,:)'; %value of A choice
-            df1_tmp.value_B_stim_fixed_params = posterior.muX(2,:)'; %value of B choice
-            df1_tmp.value_C_stim_fixed_params = posterior.muX(3,:)'; %value of C choice
-            
-            df1_tmp.value_chosen_fixed_params = out.suffStat.value_chosen';
-            df1_tmp.value_max_fixed_params = out.suffStat.value'; %This is the max value of each hidden state per trial
-            [~,max_idx]=max(out.suffStat.muX(1:3,:));
-            df1_tmp.best_value_option_fixed_params = max_idx';
-            
-            %Entropy
-            H_fixed_params = calc_entropy(out);
-            df1_tmp.H_fixed_params = H_fixed_params';
-        end
-        
-        
         %Update dataframe
         df1 = [df1; df1_tmp];
         
         
-        %% %--------- DF2 switches, errors, and demographics, parameter estimates -------------%
+        %% %--------- DF2 switches, errors, and demographics -------------%
         
         %Setup id
         df2_tmp.ID = ball.id(i);
@@ -167,46 +120,16 @@ for i = 1:length(ball.id)
         
         %Update dataframe
         df2 = [df2; df2_tmp];
-        
+   
     end
     
 end
 
-%% Add log model evidence to df2
-df2.L = out_vba_L(:,2);
-df2.L_fixed_params = out_vba_L_fixed_params(:,2);
-
-
-%% Fill any missing subjects from what Josh sent with nans
+%Fill any missing subjects from what Josh sent with nans
 assesments=readtable('C:\kod\fMRI\from_josh\bandit_10-26-17.xlsx');
 df2=join(df2,assesments,'Keys','ID');
 
-%% Parameters - load in the parameter matrix i.e. output from
-%compile_vba_parameters and join to df2
-load('C:\kod\fMRI\vba\fMRI_param_estimates.mat')
-df2=join(df2,fMRI_parameter_estimates,'Keys','ID');
-
-%Transform them -- this could be a funciton as well
-df2.alpha_win_transformed = 1./(1+exp(-df2.alpha_win)); % learning rate is bounded between 0 and 1.
-df2.alpha_loss_transformed = 1./(1+exp(-df2.alpha_loss)); % learning rate is bounded between 0 and 1.
-df2.decay_transformed = 1./(1+exp(-df2.decay)); % decay is bounded between 0 and 1.
-df2.beta_transformed = exp(df2.beta);
-
-%Put in the fixed params?
-if merge_fixed_dataset
-    load('C:\kod\fMRI\vba\fMRI_median_values.mat')
-    df2.alpha_win_median = repmat(fMRI_median_values(1),height(df2),1);
-    df2.alpha_loss_median = repmat(fMRI_median_values(1),height(df2),1);
-    df2.decay_median = repmat(fMRI_median_values(1),height(df2),1);
-    df2.beta_median = repmat(fMRI_median_values(1),height(df2),1);
-    
-    df2.alpha_win_transformed = 1./(1+exp(-df2.alpha_win_median)); % learning rate is bounded between 0 and 1.
-    df2.alpha_loss_transformed = 1./(1+exp(-df2.alpha_loss_median)); % learning rate is bounded between 0 and 1.
-    df2.decay_transformed = 1./(1+exp(-df2.decay_median)); % decay is bounded between 0 and 1.
-    df2.beta_transformed = exp(df2.beta_median);
-end
-
-%% Write the tables to csvs
+%Write the tables to csvs
 if exist('R','dir')
     mkdir('R')
 end
@@ -240,32 +163,3 @@ compare_choice(missed_responses)=nan;
 %First element is always nan
 compare_choice(1) = nan;
 
-function H = calc_entropy(out)
-value = out.suffStat.muX(1:3,:); %Hard code bad
-for j = 1:length(value)
-    val_per_trial = value(:,j);
-    val_p_exp = exp(val_per_trial);
-    val_p_exp_sum = sum(val_p_exp);
-    val_p_softmax = val_p_exp./val_p_exp_sum;
-    H(j) = calc_shannon_H(val_p_softmax);
-end
-
-function table_out = merge_parameters(parameter_table,lookup_table_or_cell_of_strings)
-%Mock up of function to merge output of compile_vba_parameters into a
-%table that contains the proper name for the parameters as well as the
-%transformed and untransformed values.
-
-for i = 1:number_of_params
-    if strfind(paramter_table_name(i),'theta')
-        table_out.([lookup_table_name{i} '_transformed']) = 1./(1+exp(-paramter_table_name(i)));
-        %%Potentially if you didn't already rename them and save otherwise
-        %%use something like..
-        %parameter_table.Properties.VariableNames{paramter_table_name(i)} = lookup_table_name{i}
-    elseif strfind(paramter_table_name(i),'phi')
-        table_out.(lookup_table_name{i}) = exp(paramter_table_name(i));
-    else
-        error('what paramter is this?')
-    end
-    
-    
-end

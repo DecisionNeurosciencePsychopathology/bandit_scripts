@@ -7,12 +7,7 @@ function  [ gx ] = g_bandit_softmax(x,P,u,in )
 % OUTPUT
 % - gx : P(a=1|x)
 
-if in.fixed_params %Fixed paramteres
-    P =  -1.353624512501712; %beta
-end
-
 beta = exp(P);
-
 
 x = x(1:3);
 
