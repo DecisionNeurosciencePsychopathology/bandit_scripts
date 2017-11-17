@@ -35,8 +35,11 @@ table(sub_df$bad,sub_df$group1245)
 # check missing data
 library(VIM)
 <<<<<<< HEAD
+<<<<<<< HEAD
 # missing_ind_chars = aggr(sub_df, col=mdc(1:2), numbers=TRUE, sortVars=TRUE, labels=names(sub_df), cex.axis=.7, gap=3, ylab=c("Proportion of missingness","Missingness Pattern"))
 =======
+=======
+>>>>>>> 4cbb4fb515cbc7ce8675ace9670a8f43c8f6224b
 library(mice)
 missing_ind_chars = aggr(sub_df, col=mdc(1:2), numbers=TRUE, sortVars=TRUE, labels=names(sub_df), cex.axis=.7, gap=3, ylab=c("Proportion of missingness","Missingness Pattern"))
 >>>>>>> 4cbb4fb515cbc7ce8675ace9670a8f43c8f6224b
@@ -347,12 +350,15 @@ anova(vm1d,vm1c)
 
 # use v_chosen instead of reinf
 <<<<<<< HEAD
+<<<<<<< HEAD
 vm2 <- glmer(stay ~ v_chosen_lag*stake_lag + stake + trial_scaled + Group*v_chosen_lag + Group*trial_scaled +
                # (1 + v_chosen_lag + trial_scaled + stake|ID), family = binomial(), data = bdf,   glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
                (1|ID), family = binomial(), data = bdf,   nAGQ =  = 0)
 
                summary(vm2)
 =======
+=======
+>>>>>>> 4cbb4fb515cbc7ce8675ace9670a8f43c8f6224b
 vm2 <- glmer(stay ~ stay_lag + stake + stake_lag + v_chosen_lag + trial_scaled + v_chosen_lag*stake_lag + stake + Group*trial_scaled + Group*v_chosen_lag + stay_lag +
                (1|ID), family = binomial(), data = bdf,   nAGQ = 0)
 summary(vm2)
