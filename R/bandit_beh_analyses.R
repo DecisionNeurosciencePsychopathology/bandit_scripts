@@ -645,7 +645,7 @@ ggplot(na.omit(bdf[,c(1:17,42:55)]), aes(x=value_chosen, y=stay_p, color = Group
 
 
 # do value and entropy have separately identifiable effects on choice?
-ggplot(na.omit(bdf), aes(x = h_lag, y = stay_p, color = Group)) + stat_smooth(method  = "glm", method.args = list(family = "binomial"), se = TRUE)
+ggplot(na.omit(bdf), aes(x = h_lag, y = stay_p, color = v_chosen_lag)) + stat_smooth(method  = "glm", method.args = list(family = "binomial"), se = TRUE)
 ggplot(na.omit(bdf), aes(x = v_chosen_lag, y = stay_p, color = Group)) + stat_smooth(method  = "glm", method.args = list(family = "binomial"), se = TRUE)
 
 ggplot(na.omit(bdf), aes(x = h_lag, y = v_chosen_lag, color = stay)) + stat_smooth(method  = "glm", method.args = list(family = "binomial"), se = TRUE)
@@ -656,7 +656,9 @@ ggplot(na.omit(bdf), aes(x = h_lag, y = v_chosen_lag, color = ID)) + geom_jitter
 ###########
 # entropy #
 ###########
-
+vhm0 <- glmer(stay ~ v_chosen_lag*h_lag + stay_lag + stake + stake_lag +
+                (1|ID), family = binomial(), data = bdf, nAGQ = 0)
+plot(allEffects(vhm0))
 vhm1 <- glmer(stay ~  v_chosen_lag*h_lag + trial_scaled + stay_lag + stake_lag + stake +
                 (1|ID), family = binomial(), data = bdf, nAGQ = 0)
 summary(vhm1)
@@ -1133,14 +1135,14 @@ View(rcdf)
 
 # split chosen value into quantiles for plotting
 
-xs=quantile(rdf$value_chosen,c(.1, .2, .3, .4, .5, .6, .7, .8, .9, .95, 1))
+xs=quantile(rdf$value_chosen,c(0,.1, .2, .3, .4, .5, .6, .7, .8, .9, 1))
 xs[1]=xs[1]-.00005
 rdf <- rdf %>% mutate(v_chosen_cat =cut(value_chosen, breaks=xs, labels=c("d1", "d2", "d3","d4", "d5", "d6","d7", "d8", "d9","d10")))
 rdf <- rdf %>% mutate(v_chosen_cat_lag =cut(v_chosen_lag, breaks=xs, labels=c("d1", "d2", "d3","d4", "d5", "d6","d7", "d8", "d9","d10")))
 
 boxplot(rdf$value_chosen~rdf$v_chosen_cat,col=3:5)
 
-ggplot(data = na.omit(rdf), aes(x = v_chosen_cat_lag, y = stay)) + geom_smooth(method = "glm", method.args = list(family = "binomial"))
+ggplot(na.omit(rdf[,c(1:2,47:68)]), aes(x = v_chosen_cat_lag, y = stay_p)) + geom_boxplot()
 boxplot(rdf$value_chosen~rdf$v_chosen_cat,col=3:5)
 
 
