@@ -93,7 +93,7 @@ bdf$stay <- bdf$choice_numeric==bdf$choice_num_lag
 bdf$stay_p[bdf$stay] <- 1
 bdf$stay_p[!bdf$stay] <- 0
 bdf = bdf %>% group_by(ID) %>%
-  <<<<<<< HEAD
+  
 mutate(stay_lag = lag(stay)  ) %>% ungroup()
 
 bdf = bdf %>% group_by(ID) %>%
@@ -111,9 +111,6 @@ bdf = bdf %>% group_by(ID) %>%
 # ggplot(bdf[i,], aes(x = Trial)) + geom_line(aes(y = bdf$value_chosen_fixed_params[i], color = "v_chosen_f")) + geom_line(aes(y = bdf$v_chosen_lag_f[i], color = "v_chosen_lag_f"))
 # ggplot(bdf[i,], aes(x = Trial)) + geom_point(aes(y = bdf$stay[i], color = "stay")) + geom_point(aes(y = bdf$stay_lag[i], color = "stay_lag"))
 
-=======
-  mutate(stay_lag = lag(stay, order_by=Trial)  ) %>% ungroup()
->>>>>>> parent of 2340ac2... Minor
 
 bdf$Group <- recode(bdf$group1245, `1` = "Controls", `2` = "Depressed", `4` = "Ideators", `5` = "Attempters")
 contrasts(bdf$Group) <- contr.treatment(levels(bdf$Group),
@@ -142,7 +139,6 @@ questionable_subjects <- perf$ID[perf$`mean(reinf_n)`<.4]
 
 udf <- bdf[!is.element(bdf$ID, questionable_subjects),]
 
-<<<<<<< HEAD
 # RL model parameters across groups
 ggplot(data = sub_df,aes(y = alpha_win,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
 ggplot(data = sub_df,aes(y = alpha_loss,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
@@ -176,9 +172,6 @@ pm6 <- lm(L ~ Group, data = sub_df)
 summary(pm6)
 anova(pm6)
 
-
-=======
-  >>>>>>> parent of 2340ac2... Minor
 prerevA <- subset(bdf,Trial<150 & choice_lag=="A")
 prerev <- subset(bdf,Trial<150)
 postrev <- subset(bdf,Trial>150)
@@ -293,7 +286,6 @@ vcheck2 <- lmer(value_chosen ~ trial_scaled + Group + (1|ID), data = bdf)
 summary(vcheck2)
 car::Anova(vcheck2)
 
-<<<<<<< HEAD
 bdf$stay_lag <- as.factor(bdf$stay_lag)
 # build the best-fitting, but somewhat principled model of value-based choice
 vm1 <- glmer(stay ~ v_chosen_lag*stake_lag + stake + trial_scaled + stay_lag +
@@ -344,18 +336,11 @@ anova(vm1d,vm1r)
 # reasonably simple model with plausible predictors
 vm2 <- glmer(stay ~ stay_lag + stake + stake_lag + v_chosen_lag + trial_scaled + v_chosen_lag*stake_lag + stake + Group*v_chosen_lag + stay_lag +
                (1|ID), family = binomial(), data = bdf,   nAGQ = 0)
-=======
-  
-  # use v_chosen instead of reinf
-  vm2 <- glmer(stay ~ v_chosen_lag*stake_lag + stake + trial_scaled + Group*v_chosen_lag + Group*trial_scaled +
-                 (1 + v_chosen_lag + trial_scaled + stake|ID), family = binomial(), data = bdf,   glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000))
-  )
->>>>>>> parent of 2340ac2... Minor
+
 summary(vm2)
 car::Anova(vm2)
 ls_vm2 <- lsmeans(vm2,"v_chosen_lag", by = "Group", at = list(v_chosen_lag=c(0.01,0.50,0.99)))
 plot(ls_vm2, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Value")
-<<<<<<< HEAD
 plot(allEffects( vm2))
 
 # what about vmax?
@@ -371,8 +356,6 @@ anova(vm2m,vm2)
 
 ls_vm2 <- lsmeans(vm2,"v_chosen_lag", by = "Group", at = list(v_chosen_lag=c(0.01,0.50,0.99)))
 plot(ls_vm2, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Value")
-=======
-  >>>>>>> parent of 2340ac2... Minor
 
 
 
@@ -484,7 +467,6 @@ ggplot(CLD, aes(x     = v_chosen_lag,
 dev.off()
 
 
-<<<<<<< HEAD
 # im2post <- glmer(stay ~ past_rew*stake_lag + stake + trial_scaled + Group*past_rew + Group*trial_scaled +
 #                    (1|ID), family = binomial(), data = postrev, nAGQ = 0)
 # summary(im2post)
@@ -517,40 +499,6 @@ dev.off()
 #
 # do they win less? No.
 rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
-               =======
-               im2post <- glmer(stay ~ past_rew*stake_lag + stake + trial_scaled + Group*past_rew + Group*trial_scaled +
-                                  (1|ID), family = binomial(), data = postrev, nAGQ = 0)
-             summary(im2post)
-             car::Anova(im2post)
-             ls_im2post <- lsmeans(im2post,"trial_scaled", by = "group1245", at = list(trial_scaled=c(0,1,2)))
-             plot(ls_im2post, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Time after reversal")
-             
-             
-             # what about controlling for IQ and EXIT?
-             im3 <- glmer(stay ~ reinf_lag*stake_lag + stake + trial_scaled + Group*reinf_lag + Group*trial_scaled + exit_scaled*trial_scaled + iq_scaled*trial_scaled +
-                            (1|ID), family = binomial(), data = bdf, nAGQ=0)
-             summary(im3)
-             car::Anova(im3)
-             anova(im3, im3)
-             ls_im3 <- lsmeans(im3,"trial_scaled", by = "group1245", at = list(trial_scaled=c(-1.5,0,1.5)))
-             plot(ls_im3, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Trial (early, middle, late in learning)")
-             
-             # does the post-reversal deficit stand controlling for IQ and EXIT?
-             im4 <- glmer(stay ~ reinf_lag*stake_lag + stake + trial_scaled + Group*reinf_lag + Group*trial_scaled +
-                            (1|ID), family = binomial(), data = postrev, nAGQ = 0)
-             # just a sensitivity analysis with EXIT and WTAR, because some of the scores are missing
-             im4a <- glmer(stay ~ reinf_lag*stake_lag + stake + trial_scaled + Group*reinf_lag + Group*trial_scaled + exit_scaled*trial_scaled +  iq_scaled*trial_scaled +
-                             (1|ID), family = binomial(), data = postrev, nAGQ = 0)
-             
-             summary(im4)
-             car::Anova(im4a)
-             ls_im4 <- lsmeans(im4,"trial_scaled", by = "Group", at = list(trial_scaled=c(0,1,2)))
-             plot(ls_im4, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Time after reversal")
-             cld(ls_im4)
-             
-             # do they win less?
-             rm1 <- glmer(reinf ~  Group*trial_scaled*reinf_lag + Group*stake + Group*stake_lag*reinf_lag +
-                            >>>>>>> parent of 2340ac2... Minor
                           (1|ID), family = binomial(), data = bdf, nAGQ = 0)
              summary(rm1)
              car::Anova(rm1)
@@ -682,7 +630,6 @@ rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
              ggplot(na.omit(bdf[,c(1:17,42:55)]), aes(x=value_chosen, y=stay_p, color = Group)) + stat_smooth(method = "glm", method.args = list(family = "binomial"), se = TRUE) + theme_bw(base_size=20) + labs(x = "Chosen value", y = "Probability of staying with the same choice")
              
              
-             <<<<<<< HEAD
              # do value and entropy have separately identifiable effects on choice?
              ggplot(na.omit(bdf), aes(x = h_lag, y = stay_p, color = v_chosen_lag)) + stat_smooth(method  = "glm", method.args = list(family = "binomial"), se = TRUE)
              ggplot(na.omit(bdf), aes(x = v_chosen_lag, y = stay_p, color = Group)) + stat_smooth(method  = "glm", method.args = list(family = "binomial"), se = TRUE)
@@ -726,9 +673,6 @@ rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
              anova(vhm2,fvhm2)
              
              
-             
-             =======
-               >>>>>>> parent of 2340ac2... Minor
              save(list = ls(all.names = TRUE),file = "bandit1.RData")
              
              ## proper replication using full behavioral data ________________________________________________________________________________________________________________________________________
@@ -1131,13 +1075,9 @@ rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
              
              boxplot(rdf$value_chosen~rdf$v_chosen_cat,col=3:5)
              
-             <<<<<<< HEAD
              ggplot(na.omit(rdf[,c(1:2,47:68)]), aes(x = v_chosen_cat_lag, y = stay_p)) + geom_boxplot()
-             =======
                ggplot(data = rdf, aes(x = v_chosen_cat, y = stay))
-             >>>>>>> parent of 2340ac2... Minor
-             boxplot(rdf$value_chosen~rdf$v_chosen_cat,col=3:5)
-             
+
              
              # redo the analysis with binned value
              rvmb <- glmer(stay ~  Group*v_chosen_cat_lag + Group*trial_scaled + stay_p +
@@ -1227,7 +1167,6 @@ rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
              
              
              
-             <<<<<<< HEAD
              ###########
              # entropy: replication #
              ###########
@@ -1249,10 +1188,6 @@ rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
              
              
              
-             
-             
-             =======
-               >>>>>>> parent of 2340ac2... Minor
              save(list = ls(all.names = TRUE),file = "bandit2.RData")
              load(file = "~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit2.RData")
              
