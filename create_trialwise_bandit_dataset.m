@@ -31,6 +31,10 @@ end
 %If we want to add in the vba results from fixing the parameters
 merge_fixed_dataset = 1;
 
+%If we want to merge the parameter estimates for fitting the first 150
+%trials
+merge_first_150 = 1;
+
 %Create data frames as tables to be saved as csvs
 df1 = table();
 df1_tmp = table();
@@ -196,14 +200,26 @@ df2.beta_transformed = exp(df2.beta);
 if merge_fixed_dataset
     load('C:\kod\fMRI\vba\fMRI_median_values.mat')
     df2.alpha_win_median = repmat(fMRI_median_values(1),height(df2),1);
-    df2.alpha_loss_median = repmat(fMRI_median_values(1),height(df2),1);
-    df2.decay_median = repmat(fMRI_median_values(1),height(df2),1);
-    df2.beta_median = repmat(fMRI_median_values(1),height(df2),1);
+    df2.alpha_loss_median = repmat(fMRI_median_values(2),height(df2),1);
+    df2.decay_median = repmat(fMRI_median_values(3),height(df2),1);
+    df2.beta_median = repmat(fMRI_median_values(4),height(df2),1);
     
-    df2.alpha_win_transformed = 1./(1+exp(-df2.alpha_win_median)); % learning rate is bounded between 0 and 1.
-    df2.alpha_loss_transformed = 1./(1+exp(-df2.alpha_loss_median)); % learning rate is bounded between 0 and 1.
-    df2.decay_transformed = 1./(1+exp(-df2.decay_median)); % decay is bounded between 0 and 1.
-    df2.beta_transformed = exp(df2.beta_median);
+    df2.alpha_win_median_transformed = 1./(1+exp(-df2.alpha_win_median)); % learning rate is bounded between 0 and 1.
+    df2.alpha_loss_median_transformed = 1./(1+exp(-df2.alpha_loss_median)); % learning rate is bounded between 0 and 1.
+    df2.decay_median_transformed = 1./(1+exp(-df2.decay_median)); % decay is bounded between 0 and 1.
+    df2.beta_median_transformed = exp(df2.beta_median);
+end
+
+%Put in first 150 parameter estimates -- need to clean this up
+if merge_first_150
+    load('C:\kod\fMRI\vba\fMRI_first_150_param_estimates.mat')
+    df2=join(df2,first_150_fMRI_param_table,'Keys','ID');
+    
+    %Transform them -- this could be a funciton as well
+    df2.alpha_win_first_150_transformed = 1./(1+exp(-df2.alpha_win_first_150)); % learning rate is bounded between 0 and 1.
+    df2.alpha_loss_first_150_transformed = 1./(1+exp(-df2.alpha_loss_first_150)); % learning rate is bounded between 0 and 1.
+    df2.decay_first_150_transformed = 1./(1+exp(-df2.decay_first_150)); % decay is bounded between 0 and 1.
+    df2.beta_first_150_transformed = exp(df2.beta_first_150);
 end
 
 %% Write the tables to csvs

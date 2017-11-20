@@ -1,4 +1,4 @@
-function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,utility,save_results)
+function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,utility,save_results,fix_all_params)
 
 %% fits BANDIT rl model to 3 armed bandit subject data using VBA toolbox
 % example call:
@@ -27,6 +27,9 @@ end
 %I think it would be easier just to not make this an argument
 use_reward_vec = 0;
 
+%If we only want to use the first 150 trials
+use_first_150 = 1;
+
 
 %% Where to look for data
 %Quick username check, and path setting
@@ -34,7 +37,7 @@ use_reward_vec = 0;
 [~, me] = system('whoami');
 me = strtrim(me);
 if save_results
-    file_path = 'vba_output/fixed_params';
+    file_path = 'vba_output';
 else
     error('something went wrong with the vba output dir!')
 end
@@ -106,6 +109,12 @@ else
 end
 u = [zeros(size(u,1),1) u(:,1:end-1)]; %Shift the u!
 
+%Only use the first 150 trials
+if use_first_150
+   n_t = n_t/2; %Should take care of the y
+   u = u(:,1:n_t);
+   censor = censor(1:n_t);
+end
 
 y = zeros(3, n_t);
 for i = 1:n_t
@@ -181,13 +190,17 @@ if plot_subject
     plot_subject_vs_contingency(b,out)
 end
 
-% if saveresults
-%     cd(results_dir);
-%     %% save output figure
-%     % h = figure(1);
-%     % savefig(h,sprintf('results/%d_%s_multinomial%d_multisession%d_fixedParams%d',id,model,multinomial,multisession,fixed_params_across_runs))
-%     save(sprintf('SHIFTED_CORRECT%d_%s_multinomial%d_multisession%d_fixedParams%d_uaversion%d_sceptic_vba_fit', id, model, multinomial,multisession,fixed_params_across_runs, u_aversion), 'posterior', 'out');
-% end
+%By pass saving here since we are only interested in the params right now.
+if save_results
+    if use_first_150
+        file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_first_150_only',id,use_reward_vec);
+        file_path = 'vba_output/first_150';
+        file_str = [file_path filesep file_name];
+    end
+        save(file_str,'posterior', 'out', 'b')
+        return
+end
+
 
 %% get prediction errors
 % alphaWin = 1./(1+exp(-posterior.muTheta(1)));
@@ -358,8 +371,14 @@ out.suffStat.loss_stay_50_prob = length(intersect(out.suffStat.loss_50_trials,ou
 % out.suffStat.diff_10_50_prob = out.suffStat.stay_10_prob - out.suffStat.stay_50_prob;
 
 if save_results
-    file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec',id,use_reward_vec);
-    file_str = [file_path filesep file_name];
+    if fix_all_params
+        file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_first_fixed_params',id,use_reward_vec);
+        file_path = 'vba_output/fixed_params';
+        file_str = [file_path filesep file_name];
+    else
+        file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec',id,use_reward_vec);
+        file_str = [file_path filesep file_name];
+    end
     save(file_str,'posterior', 'out', 'b')
 end
 
