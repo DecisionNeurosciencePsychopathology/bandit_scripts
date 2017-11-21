@@ -6,6 +6,7 @@ library(readr)
 library(lme4)
 library(ggplot2)
 library(dplyr)
+library(tibble)
 library(xtable)
 library(Hmisc)
 library(nnet)
@@ -17,14 +18,15 @@ library(factoextra)
 library(ggfortify)
 library(compareGroups)
 library(RColorBrewer)
+library(MASS)
 #load(file="dataframe_for_entropy_analysis_Oct2016.RData")
 #this contains data with 24 basis functions and post-Niv learning rule
 # load(file="dataframe_for_entropy_analysis_Nov2016.RData")
 
 library(readr)
-trial_df <- read_csv("~/code/bandit_scripts/bandit_df1.csv")
+trial_df <- read_csv("~/code/bandit_scripts/data/scanner/bandit_df1.csv")
 View(trial_df)
-sub_df <- read_csv("~/code/bandit_scripts/bandit_df2.csv")
+sub_df <- read_csv("~/code/bandit_scripts/data/scanner/bandit_df2.csv")
 View(sub_df)
 sub_df$group1245 <- as.factor(sub_df$group1245)
 sub_df$group12467 <- as.factor(sub_df$group12467)
@@ -68,6 +70,15 @@ bdf <- merge(trial_df,sub_df)
 
 summary(bdf)
 
+bdf$Group <- recode(bdf$group1245, `1` = "Controls", `2` = "Depressed", `4` = "Ideators", `5` = "Attempters")
+contrasts(bdf$Group) <- contr.treatment(levels(bdf$Group),
+                                        base=which(levels(bdf$Group) == 'Attempters'))
+
+sub_df$Group <- recode(sub_df$group1245, `1` = "Controls", `2` = "Depressed", `4` = "Ideators", `5` = "Attempters")
+contrasts(sub_df$Group) <- contr.treatment(levels(sub_df$Group),
+                                        base=which(levels(sub_df$Group) == 'Attempters'))
+
+
 bdf$stake <- as.factor(bdf$stake)
 bdf$reward <- as.factor(bdf$reward)
 bdf$comp_trials <- as.factor(bdf$comp_trials)
@@ -75,19 +86,21 @@ bdf$mystery_trials <- as.factor(bdf$mystery_trials)
 bdf$reinf <- as.factor(bdf$correct_incorrect)
 bdf$choice_numeric <- as.factor(bdf$choice_numeric)
 bdf$choice_numeric[bdf$choice_numeric==0] <- NA
-bdf$iq_scaled <- scale(bdf$WTAR_SCALED_SCORE,center = TRUE, scale = TRUE)
-bdf$exit_scaled <- scale(bdf$EXITtot,center = TRUE, scale = TRUE)
+bdf$iq_scaled <- scale(bdf$WTAR_SCALED_SCORE,center = TRUE, scale = TRUE)[,1]
+bdf$exit_scaled <- scale(bdf$EXITtot,center = TRUE, scale = TRUE)[,1]
 bdf$reinf_n <- as.numeric(bdf$correct_incorrect)
 # add multinom analyses looking at how magnitude of reward influences choice probability (nnet package)
 
+bdf = bdf %>% as_tibble %>% arrange(ID,Trial)
+
 # get_lags
 bdf = bdf %>% group_by(ID) %>%
-  mutate(stake_lag = lag(stake, order_by=Trial),
-         reinf_lag = lag(reinf, order_by=Trial),
-         choice_lag = lag(multinomial_choice, order_by=Trial),
-         choice_num_lag = lag(choice_numeric, order_by=Trial),
-         v_chosen_lag = lag(value_chosen, order_by=Trial),
-         v_max_lag = lag(value_max, order_by=Trial)
+  mutate(stake_lag = lag(stake),
+         reinf_lag = lag(reinf),
+         choice_lag = lag(multinomial_choice),
+         choice_num_lag = lag(choice_numeric),
+         v_chosen_lag = lag(value_chosen),
+         v_max_lag = lag(value_max)
   ) %>% ungroup()
 bdf$stay <- bdf$choice_numeric==bdf$choice_num_lag
 bdf$stay_p[bdf$stay] <- 1
@@ -98,6 +111,7 @@ mutate(stay_lag = lag(stay)  ) %>% ungroup()
 
 bdf = bdf %>% group_by(ID) %>%
   mutate(h_lag = lag(H)  ) %>% ungroup()
+bdf$past_rew <- recode(bdf$reinf_lag, `0` = "After omission", `1` = "After reward")
 
 # graphical sanity checks on lagged variables, because order_by=Trial does not seem to work here
 # id <-  unique(bdf$ID)[33]
@@ -111,11 +125,6 @@ bdf = bdf %>% group_by(ID) %>%
 # ggplot(bdf[i,], aes(x = Trial)) + geom_line(aes(y = bdf$value_chosen_fixed_params[i], color = "v_chosen_f")) + geom_line(aes(y = bdf$v_chosen_lag_f[i], color = "v_chosen_lag_f"))
 # ggplot(bdf[i,], aes(x = Trial)) + geom_point(aes(y = bdf$stay[i], color = "stay")) + geom_point(aes(y = bdf$stay_lag[i], color = "stay_lag"))
 
-
-bdf$Group <- recode(bdf$group1245, `1` = "Controls", `2` = "Depressed", `4` = "Ideators", `5` = "Attempters")
-contrasts(bdf$Group) <- contr.treatment(levels(bdf$Group),
-                                        base=which(levels(bdf$Group) == 'Attempters'))
-bdf$past_rew <- recode(bdf$reinf_lag, `0` = "After omission", `1` = "After reward")
 
 
 View(bdf)
@@ -208,7 +217,7 @@ mm1 <- glmer(multinomial_choice ~ past_rew*stake_lag*trial_scaled + past_rew*I(t
                (1|ID), family = binomial(), data = bdf, nAGQ = 0)
 summary(mm1)
 car::Anova(mm1)
-ls_mm1 <- lsmeans(mm1, "I(trial_scaled^2)", by = "Group", at = list(trial_scaled = c(-2,0,2)))
+ls_mm1 <- lsmeans(mm1, "trial_scaled", by = "Group", at = list(trial_scaled = c(-2,0,2)))
 plot(ls_mm1, horiz = F)
 # start looking at individual differences, starting with cognitive characteristics
 im1 <- glmer(stay ~ reinf_lag*stake_lag + stake + trial_scaled + exit_scaled*reinf_lag +  iq_scaled*reinf_lag + group1245*reinf_lag +
@@ -271,7 +280,7 @@ dev.off()
 
 
 # is this really the same for reinforced and unreinforced trials?
-ls_im2a <- lsmeans(im2,"trial_scaled", by = "reinf_lag", at = list(trial_scaled=c(-1.5,0,1.5)))
+ls_im2a <- lsmeans(im2,"trial_scaled", by = "past_rew", at = list(trial_scaled=c(-1.5,0,1.5)))
 plot(ls_im2a, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "Trial (early, middle, late in learning)")
 
 anova(im2,im1)
@@ -748,20 +757,22 @@ rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
              rdf$reinf <- as.factor(rdf$correct_incorrect)
              rdf$choice_numeric <- as.factor(rdf$choice_numeric)
              rdf$choice_numeric[rdf$choice_numeric==0] <- NA
-             rdf$age_scaled <- scale(rdf$age)
+             rdf$age_scaled <- scale(rdf$age)[,1]
              # get_lags
+             rdf = rdf %>% as_tibble %>% arrange(ID,Trial)
+             
              rdf = rdf %>% group_by(ID) %>%
-               mutate(reinf_lag = lag(reinf, order_by=Trial),
-                      choice_lag = lag(multinomial_choice, order_by=Trial),
-                      choice_num_lag = lag(choice_numeric, order_by=Trial),
-                      v_chosen_lag = lag(value_chosen, order_by=ID),
-                      v_max_lag = lag(value_max, order_by=ID)
+               mutate(reinf_lag = lag(reinf),
+                      choice_lag = lag(multinomial_choice),
+                      choice_num_lag = lag(choice_numeric),
+                      v_chosen_lag = lag(value_chosen),
+                      v_max_lag = lag(value_max)
                ) %>% ungroup()
              rdf$stay <- rdf$choice_numeric==rdf$choice_num_lag
              rdf$stay_p[rdf$stay] <- 1
              rdf$stay_p[!rdf$stay] <- 0
              rdf = rdf %>% group_by(ID) %>%
-               mutate(stay_lag = lag(stay, order_by=Trial)  ) %>% ungroup()
+               mutate(stay_lag = lag(stay)  ) %>% ungroup()
              
              rdf$Group <- recode(rdf$Group1245, `1` = "Controls", `2` = "Depressed", `4` = "Ideators", `5` = "Attempters")
              contrasts(rdf$Group) <- contr.treatment(levels(rdf$Group),
@@ -775,7 +786,7 @@ rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
              
              
              View(rdf)
-             rdf$trial_scaled <- scale(rdf$Trial)
+             rdf$trial_scaled <- scale(rdf$Trial)[,1]
              
              rprerevA <- subset(rdf,Trial<150 & choice_lag=="A")
              rpostrev <- subset(rdf,Trial>150)
