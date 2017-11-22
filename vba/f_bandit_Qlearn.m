@@ -16,12 +16,6 @@ function  [fx] = f_bandit_Qlearn(x,theta,u,in)
 %Reward
 r = u(2); % when subjects chooses correctly reward is 1 unless we use the reward vector, which then the input is rew magnitude
 
-if in.fixed_params %Fixed paramteres
-    theta(1) = 0.176093991469957; %alpha_win
-    theta(2) = -0.625165021117312; %alpha_loss
-    theta(3) = 0.627873168355044; %decay
-end
-
 if ~in.decay %This logic is somewhat confusing...
     alpha_win = 1./(1+exp(-theta(1))); % learning rate is bounded between 0 and 1.
     alpha_loss = 1./(1+exp(-theta(2))); % learning rate is bounded between 0 and 1.
