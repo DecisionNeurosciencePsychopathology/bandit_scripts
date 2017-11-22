@@ -1,5 +1,6 @@
 #  related ROI-level beta coefficients from the learned value and magnitude maps to behavior and traits
 #  running glmer with nAGQ = 0 to speed it up, can remove for final analysis for the paper
+#  separate sets of scripts for fMRI/behavior-only samples because fMRI does
 
 setwd("~/Box Sync/skinner/projects_analyses/Project Bandit/R")
 library(readr)
@@ -19,11 +20,12 @@ library(ggfortify)
 library(compareGroups)
 library(RColorBrewer)
 library(MASS)
-#load(file="dataframe_for_entropy_analysis_Oct2016.RData")
-#this contains data with 24 basis functions and post-Niv learning rule
-# load(file="dataframe_for_entropy_analysis_Nov2016.RData")
-
+library(effects)
 library(readr)
+library(VIM)
+library(mice)
+
+
 trial_df <- read_csv("~/code/bandit_scripts/data/scanner/bandit_df1.csv")
 View(trial_df)
 sub_df <- read_csv("~/code/bandit_scripts/data/scanner/bandit_df2.csv")
@@ -37,8 +39,6 @@ sub_df$bad <- sub_df$ID==206270 | sub_df$ID==210100
 
 table(sub_df$bad,sub_df$group1245)
 # check missing data
-library(VIM)
-library(mice)
 missing_ind_chars = aggr(sub_df, col=mdc(1:2), numbers=TRUE, sortVars=TRUE, labels=names(sub_df), cex.axis=.7, gap=3, ylab=c("Proportion of missingness","Missingness Pattern"))
 
 # all missingness <8%, could impute
@@ -96,24 +96,22 @@ bdf = bdf %>% as_tibble %>% arrange(ID,Trial)
 # get_lags
 bdf = bdf %>% group_by(ID) %>%
   mutate(stake_lag = lag(stake),
+         stay_lag = lag(stay),
          reinf_lag = lag(reinf),
          choice_lag = lag(multinomial_choice),
          choice_num_lag = lag(choice_numeric),
          v_chosen_lag = lag(value_chosen),
-         v_max_lag = lag(value_max)
+         v_max_lag = lag(value_max),
+         v_chosen_lag_f = lag(value_chosen_fixed_params),
+         h_lag = lag(H),
+         h_lag_f = lag(H_fixed_params)
   ) %>% ungroup()
 bdf$stay <- bdf$choice_numeric==bdf$choice_num_lag
 bdf$stay_p[bdf$stay] <- 1
 bdf$stay_p[!bdf$stay] <- 0
-bdf = bdf %>% group_by(ID) %>%
-  
-mutate(stay_lag = lag(stay)  ) %>% ungroup()
-
-bdf = bdf %>% group_by(ID) %>%
-  mutate(h_lag = lag(H)  ) %>% ungroup()
 bdf$past_rew <- recode(bdf$reinf_lag, `0` = "After omission", `1` = "After reward")
 
-# graphical sanity checks on lagged variables, because order_by=Trial does not seem to work here
+# # graphical sanity checks on lagged variables, because order_by=Trial does not seem to work here
 # id <-  unique(bdf$ID)[33]
 # i <- bdf$ID==id
 # d <- 'NA'
@@ -125,6 +123,45 @@ bdf$past_rew <- recode(bdf$reinf_lag, `0` = "After omission", `1` = "After rewar
 # ggplot(bdf[i,], aes(x = Trial)) + geom_line(aes(y = bdf$value_chosen_fixed_params[i], color = "v_chosen_f")) + geom_line(aes(y = bdf$v_chosen_lag_f[i], color = "v_chosen_lag_f"))
 # ggplot(bdf[i,], aes(x = Trial)) + geom_point(aes(y = bdf$stay[i], color = "stay")) + geom_point(aes(y = bdf$stay_lag[i], color = "stay_lag"))
 
+# plot trialwise reward
+pdf(file = "bandit wins by group.pdf", width = 10, height = 6)
+ggplot(na.omit(bdf), aes(x=Trial, y=correct_incorrect, color = Group)) + stat_smooth(method="loess") + theme_gray(base_size=20) + ylab("Probability of winning")
+dev.off()
+
+# plot choice
+bdf$choiceA <- NA
+bdf$choiceB <- NA
+bdf$choiceC <- NA
+bdf$choiceA[bdf$multinomial_choice=="A"] <- 1
+bdf$choiceB[bdf$multinomial_choice=="B"] <- 1
+bdf$choiceC[bdf$multinomial_choice=="C"] <- 1
+bdf$choiceA[bdf$multinomial_choice!="A"] <- 0
+bdf$choiceB[bdf$multinomial_choice!="B"] <- 0
+bdf$choiceC[bdf$multinomial_choice!="C"] <- 0
+
+# sanity check
+
+cdf = melt(bdf[,c(1:37,81:100)], na.rm = FALSE, measure.vars = c("choiceA","choiceB","choiceC"))
+cdf$option <- cdf$variable
+cdf$choice <- cdf$value
+View(cdf)
+
+ggplot(na.omit(cdf[,c(1:24,37:58)]), aes(x=Trial, y=choice, color = option)) + stat_smooth(method="loess") + theme_gray(base_size=20) + ylab("Choice probability")
+
+ggplot(na.omit(cdf[,c(1:24,37:58)]), aes(x=Trial, y=reinf_n, color = Group)) + stat_smooth(method="loess") + theme_gray(base_size=20) + ylab("Choice probability")
+
+ggplot(na.omit(cdf[,c(1:24,37:58)]), aes(x=Trial, y=choice, color = Group)) + stat_smooth(method="loess") + theme_gray(base_size=20) + ylab("Choice probability") +
+  facet_wrap(~option, ncol = 2) #geom_jitter(alpha=0.2) +
+
+ggplot(na.omit(cdf[,c(1:24,37:58)]), aes(x=Trial, y=choice, color = option)) + stat_smooth(method="auto") + theme_gray(base_size=20) + ylab("Choice probability") +
+  facet_wrap(~Group) #geom_jitter(alpha=0.2) +
+
+ggplot(na.omit(bdf[,c(1:24,81:100)]), aes(x=Trial, y=value_chosen, color = Group)) + stat_smooth(method="loess", alpha=0.3) + theme_gray(base_size=20) + ylab("Reward (behavioral study)")
+
+ggplot(na.omit(bdf[,c(1:24,81:100)]), aes(x=v_chosen_lag, y=stay, color = Group)) + geom_count(position = "jitter", size = 1) + theme_grey(base_size=20) + ylab("Choice repeated?") + scale_color_brewer(palette="Set1")
+ggplot(na.omit(bdf[as.numeric(bdf$group1245)<3,]), aes(x=v_chosen_lag, y=stay, color = Group)) + geom_count(position = "jitter", size = 2) + theme_gray(base_size=20) + ylab("Choice repeated?") +  scale_fill_brewer(palette="Spectral")
+
+ggplot(na.omit(bdf[,c(1:17,42:55)]), aes(x=value_chosen, y=stay_p, color = Group)) + stat_smooth(method = "glm", method.args = list(family = "binomial"), se = TRUE) + theme_bw(base_size=20) + labs(x = "Chosen value", y = "Probability of staying with the same choice")
 
 
 View(bdf)
@@ -155,7 +192,6 @@ ggplot(data = sub_df,aes(y = decay,x = Group, color = Group)) + geom_boxplot() +
 ggplot(data = sub_df,aes(y = beta,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
 ggplot(data = sub_df,aes(y = L,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
 
-
 pm1 <- manova(cbind(alpha_win, alpha_loss, decay, beta) ~ Group, data = sub_df)
 summary(pm1)
 anova(pm1)
@@ -180,6 +216,8 @@ ggplot(data = sub_df,aes(y = beta,x = Group, color = Group)) + geom_boxplot() + 
 pm6 <- lm(L ~ Group, data = sub_df)
 summary(pm6)
 anova(pm6)
+ggplot(data = sub_df,aes(y = L,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+
 
 prerevA <- subset(bdf,Trial<150 & choice_lag=="A")
 prerev <- subset(bdf,Trial<150)
@@ -195,7 +233,7 @@ ls_sm1 <- lsmeans(sm1,"reinf_lag", by = "stake_lag")
 plot(ls_sm1, type ~ stay, horiz=F,ylab = "logit(probability of staying)", xlab = "reinforcement")
 
 
-# does value help predict better than reinforcement?
+# value predicts choice massively better than just win-stay/lose-switch
 sm2 <- glmer(stay ~ v_chosen_lag*stake_lag + stake + trial_scaled +
                (1|ID), family = binomial(), data = bdf, nAGQ = 0)
 summary(sm2)
@@ -203,7 +241,8 @@ car::Anova(sm2)
 
 anova(sm1,sm2)
 
-sm3 <- glmer(stay ~ v_max_lag*stake_lag + stake + trial_scaled +
+# adding last reinforcement to long-term value improves the model significantly
+sm3 <- glmer(stay ~ v_chosen_lag*stake_lag + reinf_lag*stake_lag + stake + trial_scaled +
                (1|ID), family = binomial(), data = bdf, nAGQ = 0)
 summary(sm3)
 car::Anova(sm3)
@@ -602,56 +641,32 @@ rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
                facet_wrap(~past_rew) #geom_jitter(alpha=0.2) +
              dev.off()
              
-             
-             # plot trialwise reward
-             pdf(file = "bandit wins by group.pdf", width = 10, height = 6)
-             ggplot(na.omit(bdf), aes(x=Trial, y=correct_incorrect, color = Group)) + stat_smooth(method="loess") + theme_gray(base_size=20) + ylab("Probability of winning")
-             dev.off()
-             
-             # plot choice
-             bdf$choiceA[bdf$multinomial_choice=="A"] <- 1
-             bdf$choiceB[bdf$multinomial_choice=="B"] <- 1
-             bdf$choiceC[bdf$multinomial_choice=="C"] <- 1
-             bdf$choiceA[bdf$multinomial_choice!="A"] <- 0
-             bdf$choiceB[bdf$multinomial_choice!="B"] <- 0
-             bdf$choiceC[bdf$multinomial_choice!="C"] <- 0
-             
-             cdf = melt(bdf, na.rm = FALSE, measure.vars = c("choiceA","choiceB","choiceC"))
-             cdf$option <- cdf$variable
-             cdf$choice <- cdf$value
-             View(cdf)
-             
-             ggplot(na.omit(cdf), aes(x=Trial, y=choice, color = option)) + stat_smooth(method="loess") + theme_gray(base_size=20) + ylab("Choice probability")
-             
-             ggplot(na.omit(cdf), aes(x=Trial, y=reinf_n, color = Group)) + stat_smooth(method="loess") + theme_gray(base_size=20) + ylab("Choice probability")
-             
-             ggplot(na.omit(cdf), aes(x=Trial, y=choice, color = Group)) + stat_smooth(method="loess") + theme_gray(base_size=20) + ylab("Choice probability") +
-               facet_wrap(~option, ncol = 2) #geom_jitter(alpha=0.2) +
-             
-             ggplot(na.omit(cdf), aes(x=Trial, y=choice, color = option)) + stat_smooth(method="auto") + theme_gray(base_size=20) + ylab("Choice probability") +
-               facet_wrap(~Group) #geom_jitter(alpha=0.2) +
-             
-             ggplot(na.omit(bdf), aes(x=Trial, y=value_chosen, color = Group)) + stat_smooth(method="loess", alpha=0.3) + theme_gray(base_size=20) + ylab("Reward (behavioral study)")
-             
-             ggplot(na.omit(bdf[,]), aes(x=v_chosen_lag, y=stay, color = Group)) + geom_count(position = "jitter", size = 1) + theme_grey(base_size=20) + ylab("Choice repeated?") + scale_color_brewer(palette="Set1")
-             ggplot(na.omit(bdf[as.numeric(bdf$group1245)<3,]), aes(x=v_chosen_lag, y=stay, color = Group)) + geom_count(position = "jitter", size = 2) + theme_gray(base_size=20) + ylab("Choice repeated?") +  scale_fill_brewer(palette="Spectral")
-             
-             ggplot(na.omit(bdf[,c(1:17,42:55)]), aes(x=value_chosen, y=stay_p, color = Group)) + stat_smooth(method = "glm", method.args = list(family = "binomial"), se = TRUE) + theme_bw(base_size=20) + labs(x = "Chosen value", y = "Probability of staying with the same choice")
-             
+                          
              
              # do value and entropy have separately identifiable effects on choice?
-             ggplot(na.omit(bdf), aes(x = h_lag, y = stay_p, color = v_chosen_lag)) + stat_smooth(method  = "glm", method.args = list(family = "binomial"), se = TRUE)
-             ggplot(na.omit(bdf), aes(x = v_chosen_lag, y = stay_p, color = Group)) + stat_smooth(method  = "glm", method.args = list(family = "binomial"), se = TRUE)
+             ggplot(na.omit(bdf[,c(1:24,81:100)]), aes(x = h_lag, y = stay_p, color = v_chosen_lag)) + stat_smooth(method  = "glm", method.args = list(family = "binomial"), se = TRUE)
+             ggplot(na.omit(bdf[,c(1:24,81:100)]), aes(x = v_chosen_lag, y = stay_p, color = Group)) + stat_smooth(method  = "glm", method.args = list(family = "binomial"), se = TRUE)
              
-             ggplot(na.omit(bdf), aes(x = h_lag, y = v_chosen_lag, color = stay)) + stat_smooth(method  = "glm", method.args = list(family = "binomial"), se = TRUE)
+             ggplot(na.omit(bdf[,c(1:24,81:100)]), aes(x = h_lag, y = v_chosen_lag, color = stay)) + stat_smooth(method  = "glm", method.args = list(family = "binomial"), se = TRUE)
              
-             ggplot(na.omit(bdf), aes(x = h_lag, y = v_chosen_lag, color = ID)) + geom_jitter() + facet_wrap(~stay)
+             ggplot(na.omit(bdf[,c(1:24,81:100)]), aes(x = h_lag, y = v_chosen_lag, color = ID)) + geom_jitter() + facet_wrap(~stay)
              
+             ggplot(na.omit(bdf[,c(1:24,81:100)]), aes(x = h_lag, y = v_chosen_lag, color = stay)) + geom_jitter() + facet_wrap(~ID + choice_lag)
+
+             ggplot(na.omit(bdf[,c(1:24,81:100)]), aes(x = h_lag, y = v_max_lag, color = Trial, shape = stay)) + geom_jitter() + facet_wrap(~ID + choice_lag)
              
              ###########
              # entropy #
              ###########
-             vhm0 <- glmer(stay ~ v_chosen_lag*h_lag + stay_lag + stake + stake_lag +
+             bdf$stay_lag <- as.factor(bdf$stay_lag)
+             
+             # make sure 0-order effect of H on stay is negative before accounting for value
+             vhm00 <- glmer(stay ~ h_lag + stay_lag + stake + stake_lag +
+                             (1|ID), family = binomial(), data = bdf, nAGQ = 0)
+             plot(allEffects(vhm00))
+             
+             
+             vhm0 <- glmer(stay ~ v_chosen_lag + h_lag + stay_lag + stake + stake_lag +
                              (1|ID), family = binomial(), data = bdf, nAGQ = 0)
              plot(allEffects(vhm0))
              vhm1 <- glmer(stay ~  v_chosen_lag*h_lag + trial_scaled + stay_lag + stake_lag + stake +
@@ -673,6 +688,14 @@ rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
              ls_vhm2 <- lsmeans(vhm2, "Group", by = c("v_chosen_lag","h_lag"),  at = list(v_chosen_lag = c(0,0.5,1), h_lag = c(1.408,1.518,1.585)))
              plot(ls_vhm2, horiz = F)
              
+             # add last reinforcement 
+             vhm3 <- glmer(stay ~  v_chosen_lag*h_lag + v_chosen_lag*Group + h_lag*Group + reinf_lag*Group + trial_scaled + stay_lag + stake_lag + stake +
+                             (1|ID), family = binomial(), data = bdf, nAGQ = 0)
+             summary(vhm3)
+             car::Anova(vhm3)
+             
+             anova(vhm2,vhm3)
+                          
              cld(ls_vhm2)
              
              fvhm2 <- glmer(stay ~  v_chosen_lag_f*Group + h_lag_f*Group +  v_chosen_lag_f*age_scaled + h_lag_f*age_scaled + trial_scaled + stay_lag + stake_lag + stake +
@@ -738,6 +761,40 @@ rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
              t5 <- createTable(c5,  hide.no = 0, digits = 0, show.n = TRUE)
              export2html(t5, "age_equated_unique_beh_t_bandit_beh_by_group.html")
              
+             beh_sub_df$Group <- recode(beh_sub_df$group1245, `1` = "Controls", `2` = "Depressed", `4` = "Ideators", `5` = "Attempters")
+             contrasts(beh_sub_df$Group) <- contr.treatment(levels(beh_sub_df$Group),
+                                                        base=which(levels(beh_sub_df$Group) == 'Attempters'))
+             
+             rpm1 <- manova(cbind(alpha_win, alpha_loss, decay, beta) ~ Group, data = beh_sub_df)
+             summary(rpm1)
+             anova(rpm1)
+             
+             rpm2 <- lm(alpha_win ~ Group, data = beh_sub_df)
+             summary(rpm2)
+             anova(rpm2)
+             
+             rpm3 <- lm(alpha_loss ~ Group, data = beh_sub_df)
+             summary(rpm3)
+             anova(rpm3)
+             
+             rpm4 <- lm(decay ~ Group, data = beh_sub_df)
+             summary(rpm4)
+             anova(rpm4) #*
+             ggplot(data = beh_sub_df,aes(y = decay,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+             
+             rpm5 <- lm(beta ~ Group, data = beh_sub_df)
+             summary(rpm5)
+             anova(rpm5)
+             ggplot(data = beh_sub_df,aes(y = beta,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+             ls_rpm5 <- lsmeans(rpm5, "Group")
+             cld(ls_rpm5)
+             
+             rpm6 <- lm(L ~ Group, data = beh_sub_df)
+             summary(pm6)
+             anova(pm6)
+             ggplot(data = beh_sub_df,aes(y = L,x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+             
+             
              
              # let's try the unique sample first
              rdf <- merge(beh_trial_df,c4)
@@ -760,20 +817,23 @@ rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
              rdf$age_scaled <- scale(rdf$age)[,1]
              # get_lags
              rdf = rdf %>% as_tibble %>% arrange(ID,Trial)
-             
-             rdf = rdf %>% group_by(ID) %>%
-               mutate(reinf_lag = lag(reinf),
-                      choice_lag = lag(multinomial_choice),
-                      choice_num_lag = lag(choice_numeric),
-                      v_chosen_lag = lag(value_chosen),
-                      v_max_lag = lag(value_max)
-               ) %>% ungroup()
              rdf$stay <- rdf$choice_numeric==rdf$choice_num_lag
              rdf$stay_p[rdf$stay] <- 1
              rdf$stay_p[!rdf$stay] <- 0
-             rdf = rdf %>% group_by(ID) %>%
-               mutate(stay_lag = lag(stay)  ) %>% ungroup()
              
+             rdf = rdf %>% group_by(ID) %>%
+               mutate(reinf_lag = lag(reinf),
+                      stay_lag = lag(stay),
+                      reinf_lag = lag(reinf),
+                      choice_lag = lag(multinomial_choice),
+                      choice_num_lag = lag(choice_numeric),
+                      v_chosen_lag = lag(value_chosen),
+                      v_max_lag = lag(value_max),
+                      v_chosen_lag_f = lag(value_chosen_fixed_params),
+                      h_lag = lag(H),
+                      h_lag_f = lag(H_fixed_params)
+               ) %>% ungroup()
+
              rdf$Group <- recode(rdf$Group1245, `1` = "Controls", `2` = "Depressed", `4` = "Ideators", `5` = "Attempters")
              contrasts(rdf$Group) <- contr.treatment(levels(rdf$Group),
                                                      base=which(levels(rdf$Group) == 'Attempters'))
@@ -1186,6 +1246,13 @@ rm1 <- glmer(reinf ~  Group*trial_scaled + Group*stake + Group*stake_lag +
                               (1|ID), family = binomial(), data = rdf, nAGQ = 0)
              summary(rvhm2)
              car::Anova(rvhm2)
+
+             rdf$stay_lag <- as.factor(rdf$stay_lag)
+             rvhm3 <- glmer(stay ~  v_chosen_lag*h_lag + v_chosen_lag*Group + h_lag*Group + reinf_lag*Group + trial_scaled + stay_lag +
+                              (1|ID), family = binomial(), data = rdf, nAGQ = 0)
+             summary(rvhm3)
+             car::Anova(rvhm3)
+             plot(allEffects(rvhm3))
              
              # ls_rvhm2 <- lsmeans(rvhm2, "Group", by = c("v_chosen_lag","h_lag"),  at = list(v_chosen_lag = c(0,0.5,1), h_lag = c(1.408,1.518,1.585)))
              # plot(ls_rvhm2, horiz = F)
