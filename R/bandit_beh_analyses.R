@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 #  related ROI-level beta coefficients from the learned value and magnitude maps to behavior and traits
 #  running glmer with nAGQ = 0 to speed it up, can remove for final analysis for the paper
 #  separate sets of scripts for fMRI/behavior-only samples because fMRI does
@@ -2292,4 +2291,3 @@ dev.off()
 
 save(list = ls(all.names = TRUE),file = "bandit2.RData")
 load(file = "~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit2.RData")
->>>>>>> Stashed changes
