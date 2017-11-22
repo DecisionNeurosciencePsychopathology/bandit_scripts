@@ -99,6 +99,48 @@ for i = 1:length(ball.id)
         [~,max_idx]=max(out.suffStat.muX(1:3,:));
         df1_tmp.best_value_option = max_idx';
         
+        %Entropy
+        H = calc_entropy(out);
+        df1_tmp.H = H';
+        
+        %If we want to add the fixed parameter data -- maybe think of
+        %making this a funciton if you have to merge more than 2 vba output
+        %datasets i.e. if tables can be dynamically named supply a cell
+        %list of varable names with out and posterior, or rename them after
+        if merge_fixed_dataset
+            vba_file = glob(['vba_output/fixed_params/*' num2str(ball.id(i)) '*.mat']);
+            load(vba_file{:})
+            
+            %Pull log model evidence
+            out_vba_L_fixed_params = [out_vba_L_fixed_params; [ball.id(i) out.F]];
+            
+            df1_tmp.value_A_stim_fixed_params = posterior.muX(1,:)'; %value of A choice
+            df1_tmp.value_B_stim_fixed_params = posterior.muX(2,:)'; %value of B choice
+            df1_tmp.value_C_stim_fixed_params = posterior.muX(3,:)'; %value of C choice
+            
+            df1_tmp.value_chosen_fixed_params = out.suffStat.value_chosen';
+            df1_tmp.value_max_fixed_params = out.suffStat.value'; %This is the max value of each hidden state per trial
+            [~,max_idx]=max(out.suffStat.muX(1:3,:));
+            df1_tmp.best_value_option_fixed_params = max_idx';
+            
+            %Entropy
+            H_fixed_params = calc_entropy(out);
+            df1_tmp.H_fixed_params = H_fixed_params';
+        end
+        
+        if merge_first_150
+            vba_file = glob(['vba_output/first_150/*' num2str(ball.id(i)) '*.mat']);
+            load(vba_file{:})
+            
+            %Grab value chosen
+            df1_tmp.value_chosen_first_150 = [out.suffStat.value_chosen'; nan(150, 1)];
+            
+            df1_tmp.value_A_stim_first_150 = [posterior.muX(1,:)'; nan(150, 1)]; %value of A choice
+            df1_tmp.value_B_stim_first_150 = [posterior.muX(2,:)'; nan(150, 1)]; %value of B choice
+            df1_tmp.value_C_stim_first_150 = [posterior.muX(3,:)'; nan(150, 1)]; %value of C choice
+        end
+        
+        
         %Update dataframe
         df1 = [df1; df1_tmp];
         

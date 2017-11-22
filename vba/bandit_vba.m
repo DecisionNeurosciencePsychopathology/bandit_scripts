@@ -25,7 +25,7 @@ end
 use_reward_vec = 0;
 
 %If we only want to use the first 150 trials
-use_first_150 = 1;
+use_first_150 = 0;
 
 
 %% Where to look for data
@@ -177,12 +177,17 @@ end
 %By pass saving here since we are only interested in the params right now.
 if save_results
     if use_first_150
+        %Save value chosen as well
+        chosen_index = y;
+        chosen_index = carryValueForward(chosen_index,y); %If there are any Nan's replace them with the most recent decision made
+        choices = out.suffStat.muX(1:3,:);
+        out.suffStat.value_chosen = choices(logical(chosen_index))';
         file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_first_150_only',id,use_reward_vec);
         file_path = 'vba_output/first_150';
         file_str = [file_path filesep file_name];
-    end
         save(file_str,'posterior', 'out', 'b')
         return
+    end
 end
 
 
