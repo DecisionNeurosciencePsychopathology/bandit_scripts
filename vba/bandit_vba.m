@@ -1,4 +1,4 @@
-function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,utility,save_results,fix_all_params)
+function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, fix_decay,utility,save_results,fix_all_params)
 
 %% fits BANDIT rl model to 3 armed bandit subject data using VBA toolbox
 % example call:
@@ -64,11 +64,18 @@ if utility
 end
 
 
-if ~decay
+% % % if ~fix_decay
+% % %     n_theta = n_theta-1;
+% % %     options.inF.decay = 0;
+% % % else
+% % %     options.inF.decay = 1;
+% % % end
+
+if fix_decay
     n_theta = n_theta-1;
-    options.inF.decay = 0;
+    options.inF.fix_decay = 1;
 else
-    options.inF.decay = 1;
+    options.inF.fix_decay = 0;
 end
 
 n_phi = 1; %Number of observation params (Beta)

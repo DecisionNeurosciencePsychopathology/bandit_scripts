@@ -16,7 +16,8 @@ function  [fx] = f_bandit_Qlearn(x,theta,u,in)
 %Reward
 r = u(2); % when subjects chooses correctly reward is 1 unless we use the reward vector, which then the input is rew magnitude
 
-if ~in.decay %This logic is somewhat confusing...
+if in.fix_decay %This is the fixed version
+%if in.decay %This logic is somewhat confusing... leave for relic vba data for now
     alpha_win = 1./(1+exp(-theta(1))); % learning rate is bounded between 0 and 1.
     alpha_loss = 1./(1+exp(-theta(2))); % learning rate is bounded between 0 and 1.
     decay=0.5;
