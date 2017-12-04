@@ -177,6 +177,16 @@ bdf$past_rew <-
   recode(bdf$reinf_lag, `0` = "After omission", `1` = "After reward")
 bdf$correct_incorrect <- as.factor(bdf$correct_incorrect)
 
+bdf$choiceA <- NA
+bdf$choiceB <- NA
+bdf$choiceC <- NA
+bdf$choiceA[bdf$multinomial_choice=="A"] <- 1
+bdf$choiceB[bdf$multinomial_choice=="B"] <- 1
+bdf$choiceC[bdf$multinomial_choice=="C"] <- 1
+bdf$choiceA[bdf$multinomial_choice!="A"] <- 0
+bdf$choiceB[bdf$multinomial_choice!="B"] <- 0
+bdf$choiceC[bdf$multinomial_choice!="C"] <- 0
+
 
 ##############################
 # variables legend ###########
@@ -656,6 +666,17 @@ rdf$past_rew <-
   recode(rdf$reinf_lag, `0` = "After omission", `1` = "After reward")
 rdf$correct_incorrect <- as.factor(rdf$correct_incorrect)
 
+rdf$choiceA <- NA
+rdf$choiceB <- NA
+rdf$choiceC <- NA
+rdf$choiceA[rdf$multinomial_choice == "A"] <- 1
+rdf$choiceB[rdf$multinomial_choice == "B"] <- 1
+rdf$choiceC[rdf$multinomial_choice == "C"] <- 1
+rdf$choiceA[rdf$multinomial_choice != "A"] <- 0
+rdf$choiceB[rdf$multinomial_choice != "B"] <- 0
+rdf$choiceC[rdf$multinomial_choice != "C"] <- 0
+
+
 # value of chosen stimulus incorporating subsequent reward, v(a[t]) after r(t)
 rdf$v_chosen_lag_updated <- NA
 rdf$v_chosen_lag_updated[which(rdf$choice_numeric==1)] <- rdf$value_A_lead[which(rdf$choice_numeric==1)]
@@ -942,4 +963,5 @@ car::Anova(rvcheck2)
 
 
 save(list = ls(all.names = TRUE), file = "bandit2.RData")
+# in case this script needs to be extended:
 load(file = "~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit2.RData")
