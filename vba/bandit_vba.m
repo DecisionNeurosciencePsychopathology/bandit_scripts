@@ -1,4 +1,4 @@
-function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,utility,save_results)
+function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, fix_decay,utility,save_results,fix_all_params)
 
 %% fits BANDIT rl model to 3 armed bandit subject data using VBA toolbox
 % example call:
@@ -23,6 +23,9 @@ end
 
 %I think it would be easier just to not make this an argument
 use_reward_vec = 0;
+
+%If we only want to use the first 150 trials
+use_first_150 = 0;
 
 
 %% Where to look for data
@@ -61,11 +64,18 @@ if utility
 end
 
 
-if ~decay
+% % % if ~fix_decay
+% % %     n_theta = n_theta-1;
+% % %     options.inF.decay = 0;
+% % % else
+% % %     options.inF.decay = 1;
+% % % end
+
+if fix_decay
     n_theta = n_theta-1;
-    options.inF.decay = 0;
+    options.inF.fix_decay = 1;
 else
-    options.inF.decay = 1;
+    options.inF.fix_decay = 0;
 end
 
 n_phi = 1; %Number of observation params (Beta)
@@ -90,6 +100,12 @@ else
 end
 u = [zeros(size(u,1),1) u(:,1:end-1)]; %Shift the u!
 
+%Only use the first 150 trials
+if use_first_150
+   n_t = n_t/2; %Should take care of the y
+   u = u(:,1:n_t);
+   censor = censor(1:n_t);
+end
 
 y = zeros(3, n_t);
 for i = 1:n_t
@@ -165,13 +181,22 @@ if plot_subject
     plot_subject_vs_contingency(b,out)
 end
 
-% if saveresults
-%     cd(results_dir);
-%     %% save output figure
-%     % h = figure(1);
-%     % savefig(h,sprintf('results/%d_%s_multinomial%d_multisession%d_fixedParams%d',id,model,multinomial,multisession,fixed_params_across_runs))
-%     save(sprintf('SHIFTED_CORRECT%d_%s_multinomial%d_multisession%d_fixedParams%d_uaversion%d_sceptic_vba_fit', id, model, multinomial,multisession,fixed_params_across_runs, u_aversion), 'posterior', 'out');
-% end
+%By pass saving here since we are only interested in the params right now.
+if save_results
+    if use_first_150
+        %Save value chosen as well
+        chosen_index = y;
+        chosen_index = carryValueForward(chosen_index,y); %If there are any Nan's replace them with the most recent decision made
+        choices = out.suffStat.muX(1:3,:);
+        out.suffStat.value_chosen = choices(logical(chosen_index))';
+        file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_first_150_only',id,use_reward_vec);
+        file_path = 'vba_output/first_150';
+        file_str = [file_path filesep file_name];
+        save(file_str,'posterior', 'out', 'b')
+        return
+    end
+end
+
 
 %% get prediction errors
 % alphaWin = 1./(1+exp(-posterior.muTheta(1)));
@@ -339,8 +364,14 @@ out.suffStat.loss_stay_50_prob = length(intersect(out.suffStat.loss_50_trials,ou
 % out.suffStat.diff_10_50_prob = out.suffStat.stay_10_prob - out.suffStat.stay_50_prob;
 
 if save_results
-    file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec',id,use_reward_vec);
-    file_str = [file_path filesep file_name];
+    if fix_all_params
+        file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_first_fixed_params',id,use_reward_vec);
+        file_path = 'vba_output/fixed_params';
+        file_str = [file_path filesep file_name];
+    else
+        file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec',id,use_reward_vec);
+        file_str = [file_path filesep file_name];
+    end
     save(file_str,'posterior', 'out', 'b')
 end
 
