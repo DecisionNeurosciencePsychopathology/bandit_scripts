@@ -2,10 +2,10 @@
 #  running glmer with nAGQ = 0 to speed it up, can remove for final analysis for the paper
 #  separate sets of scripts for fMRI/behavior-only samples because fMRI does
 #  more detailed plots in bandit_beh_analyses
-
 setwd("~/Box Sync/skinner/projects_analyses/Project Bandit/R")
 library(readr)
 library(lme4)
+library(lmerTest)
 library(ggplot2)
 library(dplyr)
 library(tidyr)
@@ -161,6 +161,8 @@ bdf = bdf %>% group_by(ID) %>%
     v_max_lag = lag(value_max),
     v_max_lag = lag(value_max),
     v_max_lag_mfx = lag(value_max_vba_mfx),
+    v_max_lag2_mfx = lag(value_max_vba_mfx,2),
+    
     v_chosen_lag_mfx  = lag(value_chosen_vba_mfx),
     h_lag = lag(H),
     h_lag_mfx = lag(H_vba_mfx)
@@ -168,6 +170,8 @@ bdf = bdf %>% group_by(ID) %>%
 bdf$stay <- bdf$choice_numeric == bdf$choice_num_lead
 bdf = bdf %>% group_by(ID) %>%
   mutate(stay_lag = lag(stay)) %>% ungroup()
+bdf$stay <- as.factor(bdf$stay)
+bdf$stay_lag <- as.factor(bdf$stay_lag)
 
 bdf$trial_scaled <- scale(bdf$Trial)
 bdf$stay_p <- NA
@@ -310,12 +314,125 @@ m_old <-   glmer(
   nAGQ = 0)
 summary(m_old)
 car::Anova(m_old)
-plot(allEffects(m_old))
-
 ls_m_old <- lsmeans(m_old,"value_chosen_vba_mfx", by = c("Group","h_mfx_mc"), at = list(value_chosen_vba_mfx = c(0.1,0.9), h_mfx_mc = c(-1,1)))
 plot(ls_m_old, horiz = F)
 
+# Michael's suggestion: predict choice value
 
+vm1 <- lmer(
+  value_chosen_vba_mfx ~ reinf * Group + stay * Group + 
+  reinf*h_mfx_mc + 
+  h_mfx_mc*Group + 
+  stake  + trial_scaled + stay_lag +
+    (1 | ID),
+  data = bdf)
+summary(vm1)
+car::Anova(vm1)
+plot(allEffects(vm1))
+
+# account for previously chosen value or vmax: this model is getting too complicated too quickly
+vm2 <- lmer(
+  value_chosen_vba_mfx ~ reinf * stay * Group + 
+    reinf*h_mfx_mc + v_max_lag_mfx*Group +
+    h_mfx_mc*Group + 
+    stake  + trial_scaled + stay_lag +
+    (1 | ID),
+  data = bdf)
+summary(vm2)
+car::Anova(vm2)
+plot(allEffects(vm2))
+
+# simplify to basic effects: still the same stay*Group interaction
+vm3 <- lmer(
+  value_chosen_vba_mfx ~ reinf * stay * Group + 
+    stake  + trial_scaled + stay_lag +
+    (1 | ID),
+  data = bdf)
+summary(vm3)
+car::Anova(vm3)
+plot(allEffects(vm3))
+lsm <- lsmeans(vm3, "stay", by = "Group")
+plot(lsm, horiz = F)
+lsm <- lsmeans(vm3, "reinf", by = "Group")
+plot(lsm, horiz = F)
+
+#  see on what trials they pick the best option
+
+bm1 <-  glmer(
+  choice_numeric==best_value_option_vba_mfx  ~ reinf*stay + reinf*Group + stay * Group +
+    stake + trial_scaled * Group +
+    (1 | ID),
+  family = binomial(),
+  data = bdf,
+  nAGQ = 0)
+summary(bm1)
+car::Anova(bm1)
+plot(allEffects(bm1))
+lsm <- lsmeans(bm1, "stay", by = "Group")
+plot(lsm, horiz = F)
+lsm <- lsmeans(bm1, "reinf", by = "Group")
+plot(lsm, horiz = F)
+
+# the above looks like an altered EE tradeoff, let's look at effects of entropy again
+# 3-way interactions drive me a bit crazy, limit to 2-way interactions
+bmh1 <-  glmer(
+  choice_numeric==best_value_option_vba_mfx  ~ 
+    reinf*stay + reinf*Group + stay * Group +
+    stake + trial_scaled + 
+    h_mfx_mc* stay + h_mfx_mc * Group + 
+    (1 | ID),
+  family = binomial(),
+  data = bdf,
+  nAGQ = 0)
+summary(bmh1)
+car::Anova(bmh1)
+lsm <- lsmeans(bmh1, "reinf", by = "Group")
+plot(lsm, horiz = F)
+
+bmhv1 <-  glmer(
+  choice_numeric==best_value_option_vba_mfx  ~ 
+    reinf*Group + 
+    stake + trial_scaled + 
+     h_mfx_mc * Group + v_max_lag_mfx * Group +
+    (1 | ID),
+  family = binomial(),
+  data = bdf,
+  nAGQ = 0)
+summary(bmhv1)
+car::Anova(bmhv1)
+lsm <- lsmeans(bmhv1, "reinf", by = "Group")
+plot(lsm, horiz = F)
+lsm <- lsmeans(bmhv1, "v_max_lag_mfx", by = "Group", at = list(v_max_lag_mfx = c(0.1,0.9)))
+plot(lsm, horiz = F)
+lsm <- lsmeans(bmhv1, "h_mfx_mc", by = "Group", at = list(h_mfx_mc = c(-2,2)))
+plot(lsm, horiz = F)
+
+# account for stay -- not sure about the interpretation of this model, although switches can be understood as exploratory
+bmhv2 <-  glmer(
+  choice_numeric==best_value_option_vba_mfx  ~ 
+    reinf*Group + 
+    stake + trial_scaled + 
+    h_mfx_mc * Group + v_max_lag_mfx * Group +
+    stay * reinf * Group +
+    (1 | ID),
+  family = binomial(),
+  data = bdf,
+  nAGQ = 0)
+summary(bmhv2)
+car::Anova(bmhv2)
+lsm <- lsmeans(bmhv2, "reinf", by = "Group")
+plot(lsm, horiz = F)
+lsm <- lsmeans(bmhv2, "v_max_lag_mfx", by = "Group", at = list(v_max_lag_mfx = c(0.1,0.9)))
+plot(lsm, horiz = F)
+lsm <- lsmeans(bmhv2, "h_mfx_mc", by = "Group", at = list(h_mfx_mc = c(-2,2)))
+plot(lsm, horiz = F)
+lsm <- lsmeans(bmhv2, "stay", by = c("Group", "reinf"))
+plot(lsm, horiz = F)
+lsm <- lsmeans(bmhv2, "stay", by = "reinf")
+plot(lsm, horiz = F)
+
+
+# that's a really nice effect, but is it all driven by value?
 
 # skip the graphics for now
 
@@ -652,6 +769,8 @@ rdf = rdf %>% group_by(ID) %>%
     v_max_lag = lag(value_max),
     v_max_lag = lag(value_max),
     v_max_lag_mfx = lag(value_max_vba_mfx),
+    v_max_lag2_mfx = lag(value_max_vba_mfx,2),
+    
     v_chosen_lag_mfx  = lag(value_chosen_vba_mfx),
     h_lag = lag(H),
     h_lag_mfx = lag(H_vba_mfx)
@@ -659,12 +778,19 @@ rdf = rdf %>% group_by(ID) %>%
 rdf$stay <- rdf$choice_numeric == rdf$choice_num_lead
 rdf = rdf %>% group_by(ID) %>%
   mutate(stay_lag = lag(stay)) %>% ungroup()
+rdf$stay <- as.factor(rdf$stay)
+rdf$stay_lag <- as.factor(rdf$stay_lag)
+
 rdf$stay_p <- NA
 rdf$stay_p[rdf$stay] <- 1
 rdf$stay_p[!rdf$stay] <- 0
 rdf$past_rew <-
   recode(rdf$reinf_lag, `0` = "After omission", `1` = "After reward")
+rdf$reinf_n <- as.numeric(rdf$correct_incorrect)
+
 rdf$correct_incorrect <- as.factor(rdf$correct_incorrect)
+
+
 
 rdf$choiceA <- NA
 rdf$choiceB <- NA
@@ -758,6 +884,65 @@ car::Anova(r_m_old)
 
 ls <- lsmeans(r_m_old,"value_chosen_vba_mfx", by = c("Group","h_mfx_mc"), at = list(value_chosen_vba_mfx = c(0.1,0.9), h_mfx_mc = c(-1,1)))
 plot(ls, horiz = F)
+
+
+r_vm1 <- lmer(
+  value_chosen_vba_mfx ~ reinf * Group + stay * Group + 
+    reinf*h_mfx_mc + 
+    h_mfx_mc + 
+    trial_scaled + stay_lag +
+    (1 | ID),
+  data = rdf)
+summary(r_vm1)
+car::Anova(r_vm1)
+plot(allEffects(r_vm1))
+
+# account for previously chosen value or vmax?
+r_vm2 <- lmer(
+  value_chosen_vba_mfx ~ reinf * Group + stay * Group + 
+    reinf*h_mfx_mc + v_max_lag_mfx*Group +
+    h_mfx_mc*Group + 
+    trial_scaled + stay_lag +
+    (1 | ID),
+  data = rdf)
+summary(r_vm2)
+car::Anova(r_vm2)
+plot(allEffects(r_vm2))
+
+# replicate simple effect of reinf, stay on EE
+r_bm1 <-  glmer(
+  choice_numeric==best_value_option_vba_mfx  ~ reinf*stay + reinf*Group + stay * Group +
+    trial_scaled * Group +
+    (1 | ID),
+  family = binomial(),
+  data = rdf,
+  nAGQ = 0)
+summary(r_bm1)
+car::Anova(r_bm1)
+plot(allEffects(bm1))
+lsm <- lsmeans(r_bm1, "stay", by = "Group")
+plot(lsm, horiz = F)
+lsm <- lsmeans(r_bm1, "reinf", by = "Group")
+plot(lsm, horiz = F)
+
+r_bmhv1 <-  glmer(
+  choice_numeric==best_value_option_vba_mfx  ~ 
+   reinf*Group + 
+    trial_scaled + 
+    h_mfx_mc * Group + v_max_lag_mfx * Group +
+    (1 | ID),
+  family = binomial(),
+  data = rdf,
+  nAGQ = 0)
+summary(r_bmhv1)
+car::Anova(r_bmhv1)
+lsm <- lsmeans(r_bmhv1, "reinf", by = "Group")
+plot(lsm, horiz = F)
+lsm <- lsmeans(r_bmhv1, "v_max_lag_mfx", by = "Group", at = list(v_max_lag_mfx = c(0.1,0.9)))
+plot(lsm, horiz = F)
+lsm <- lsmeans(r_bmhv1, "h_mfx_mc", by = "Group", at = list(h_mfx_mc = c(-2,2)))
+plot(lsm, horiz = F)
+
 
 
 ## some heritage plots
@@ -964,4 +1149,4 @@ car::Anova(rvcheck2)
 
 save(list = ls(all.names = TRUE), file = "bandit2.RData")
 # in case this script needs to be extended:
-load(file = "~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit2.RData")
+# load(file = "~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit2.RData")

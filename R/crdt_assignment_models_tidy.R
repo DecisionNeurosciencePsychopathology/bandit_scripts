@@ -6,6 +6,9 @@ load(file = "~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit3.RData
 require(lme4)
 library(corrplot)
 
+# really dirty trick, make sure you clear the workspace afterward
+# bdf <- rdf
+
 #run regressions
 
 A_reg_all5 = glmer(
@@ -28,7 +31,10 @@ A_reg_all5 = glmer(
 )
 # check coeff matrix
 A5 = matrix(data = fixef(A_reg_all5)[12:36],nrow = 5,ncol=5)
-corrplot(A5,is.corr = FALSE, method = "color")
+corrplot(A5,cl.lim = c(-3, 3),is.corr = FALSE, method = "color")
+
+Az <- coef(summary(A_reg_all5))[,"z value"]  ## identical
+
 
 
 B_reg_all5 = glmer(
@@ -51,7 +57,7 @@ B_reg_all5 = glmer(
 )
 # check coeff matrix
 B5 = matrix(data = fixef(B_reg_all5)[12:36],nrow = 5,ncol=5)
-corrplot(B5,is.corr = FALSE, method = "color")
+corrplot(B5,cl.lim = c(-3, 3),is.corr = FALSE, method = "color")
 
 C_reg_all5 = glmer(
   C ~
@@ -82,7 +88,7 @@ all_z <- (Az + Bz + Cz)/3
 all_coeffs_combined_matrix5 = matrix(data = all_z[12:36],nrow = 5,ncol=5)
 colnames(all_coeffs_combined_matrix5) <- c("r(t-1)","r(t-2)", "r(t-3)","r(t-4)","r(t-5)")
 rownames(all_coeffs_combined_matrix5) <- c("choice(t-1)","choice(t-2)", "choice(t-3)","choice(t-4)","choice(t-5)")
-corrplot(all_coeffs_combined_matrix5,is.corr = FALSE, method = "color", title = paste0("Interactions between past choices \n",
+corrplot(all_coeffs_combined_matrix5,cl.lim = c(-7,7), is.corr = FALSE, method = "color", title = paste0("Interactions between past choices \n",
          "and rewards predicting choice, \n",
           "z statistics"), mar=c(0,0,3,0))
 
@@ -128,7 +134,6 @@ B_reg_all5_g = glmer(
 
   glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000))
 )
-alarm()
 
 C_reg_all5_g = glmer(
   C ~
@@ -158,13 +163,16 @@ all_z_g <- (Az_g + Bz_g + Cz_g)/3
 
 all5_g = matrix(data = all_z_g[40:114],nrow = 3,ncol = 25)
 all5ctrl = matrix(data = all5_g[1,],nrow = 5,ncol = 5)
-corrplot(all5ctrl,is.corr = FALSE, method = "color", title = 'controls vs. attempters', mar=c(0,0,1,0))
+corrplot(all5ctrl,cl.lim = c(-6, 6),is.corr = FALSE, method = "color", title = 'controls vs. attempters', mar=c(0,0,1,0))
 all5dep = matrix(data = all5_g[2,],nrow = 5,ncol = 5)
-corrplot(all5dep,is.corr = FALSE, method = "color", title = 'NS depressed vs. attempters', mar=c(0,0,1,0))
+corrplot(all5dep,cl.lim = c(-6, 6),is.corr = FALSE, method = "color", title = 'NS depressed vs. attempters', mar=c(0,0,1,0))
 all5id = matrix(data = all5_g[3,],nrow = 5,ncol = 5)
-corrplot(all5id,is.corr = FALSE, method = "color", title = 'ideators vs. attempters', mar=c(0,0,1,0))
+corrplot(all5id,cl.lim = c(-6, 6),is.corr = FALSE, method = "color", title = 'ideators vs. attempters', mar=c(0,0,1,0))
 all5_att_vs_rest <- (all5ctrl + all5dep + all5id)/3
 colnames(all5_att_vs_rest) <- c("r(t-1)","r(t-2)", "r(t-3)","r(t-4)","r(t-5)")
 rownames(all5_att_vs_rest) <- c("choice(t-1)","choice(t-2)", "choice(t-3)","choice(t-4)","choice(t-5)")
-corrplot(all5_att_vs_rest,is.corr = FALSE, method = "color", title = 'all vs. attempters', mar=c(0,0,1,0))
-
+corrplot(all5_att_vs_rest,cl.lim = c(-3, 3),is.corr = FALSE, method = "color", title = 'all vs. attempters', mar=c(0,0,1,0))
+d <- diag(all5_att_vs_rest)
+off <- all5_att_vs_rest[all5_att_vs_rest!=diag(all5_att_vs_rest)]
+mean(off)
+t.test(d,off)
