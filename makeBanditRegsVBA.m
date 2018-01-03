@@ -27,6 +27,7 @@ plot_subject=0;
 valence=1;
 fix_decay=0; %The logic surrounds decay is kind of confusing
 utility=0;
+fix_all_params=0;
 save_results=1;
 for i = 3:length(dirs)
     
@@ -47,7 +48,7 @@ for i = 3:length(dirs)
             
             %Save all the ids processed
             idNumbers(i) = id;
-            [posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, fix_decay,utility,save_results);
+            [posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, fix_decay,utility,save_results,fix_all_params);
             
             %Update task_tracking data
             task_data.behave_processed=1;

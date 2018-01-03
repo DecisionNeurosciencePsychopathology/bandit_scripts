@@ -315,10 +315,10 @@ if strcmpi(dataset_to_compile,'fMRI')
 else
     assesments=readtable('C:\kod\Neuropsych_preproc\matlab\analysis\bandit\11-02-17 JON FINAL.xlsx'); %Does this work for the imaging sample? -- no it doesn't
 end
-df2=join(df2,assesments,'Keys','ID');
+%JON UNCOMMENT THIS ONCE YOU GET EVERYONE!
+%df2=join(df2,assesments,'Keys','ID');
 
 %% Parameters - load in the parameter matrix i.e. output from
-
 vba_vanilla_param_table=compile_vba_parameters(file_strings.vba_output);
 
 %Load the lookup table -- for now this is universal

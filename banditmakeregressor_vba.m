@@ -82,54 +82,59 @@ trial.event_end=reshape(feedback.event_end,[n_t,1]);
 %% Decision aligned Regressors
 [b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'decision_Times',b.choice_censor,0,b);
 [b.stim_times.comp_fsl,b.stim_times.comp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'comp_trials',comp_index,0,b);
-[b.stim_times.myst_fsl,b.stim_times.myst_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'myst_trials',myst_index,0,b);
+
 
 % Value Regressors
-[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned',out.suffStat.value',0,b);
-[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_diff',out.suffStat.value_diff',0,b);
-[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen',out.suffStat.value_chosen',0,b);
-[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen_diff',out.suffStat.value_chosen_diff',0,b);
+[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned',out.suffStat.value'.*b.choice_censor,0,b);
+[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_diff',out.suffStat.value_diff'.*b.choice_censor,0,b);
+[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen',out.suffStat.value_chosen'.*b.choice_censor,0,b);
+[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen_diff',out.suffStat.value_chosen_diff'.*b.choice_censor,0,b);
 %[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'valueDecisionAligned_chosen_diff_standardized',out.suffStat.value_chosen_diff_standardized',0,b);
 
 %Experiment end of decision phase plus stick
-[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_end,decision.event_end+2,'valueDecisionEndAligned_chosen',out.suffStat.value_chosen',0,b);
+[b.stim_times.resp_fsl,b.stim_times.resp_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_end,decision.event_end+2,'valueDecisionEndAligned_chosen',out.suffStat.value_chosen'.*b.choice_censor,0,b);
 
 % Stake vector
-[b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'stakeDecisionAligned',out.suffStat.stake',0,b);
-[b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'stakeDecisionAligned_MC',out.suffStat.stake_mc',0,b); %mean correted
+[b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'stakeDecisionAligned',out.suffStat.stake'.*b.choice_censor,0,b);
+[b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'stakeDecisionAligned_MC',out.suffStat.stake_mc'.*b.choice_censor,0,b); %mean correted
 
 % Motor Regressors
 % right = 2; left = 7;
 b.right = (b.stim_RESP==2);
 b.left = (b.stim_RESP==7);
-[b.stim_times.left_fsl,b.stim_times.left_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'left',b.left,0,b);
-[b.stim_times.right_fsl,b.stim_times.right_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'right',b.right,0,b);
+[b.stim_times.left_fsl,b.stim_times.left_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'left',b.left.*b.choice_censor,0,b);
+[b.stim_times.right_fsl,b.stim_times.right_spmg]=write3Ddeconv_startTimes(data_dump_str,decision.event_beg,decision.event_end,'right',b.right.*b.choice_censor,0,b);
 
 
 %% Feedback aligned Regressors
 [b.stim_times.feedback_fsl,b.stim_times.feedback_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'feedback_Times',b.feedback_censor,0,b);
+[b.stim_times.myst_fsl,b.stim_times.myst_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'myst_trials',myst_index,0,b);
 
 % PE regressors
-[b.stim_times.unsignedpes_fsl,b.stim_times.unsignedpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'unsignedPEs',out.suffStat.PEunsigned',0,b);
-[b.stim_times.signedpes_fsl,b.stim_times.signedpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'signedPEs',out.suffStat.PEsigned',0,b);
-[b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPosPEs',out.suffStat.PEchosen_pos',0,b);
-[b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenNegPEs',out.suffStat.PEchosen_neg',0,b);
-[b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEs',out.suffStat.PEchosen',0,b);
-[b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEsZscored',zscore(out.suffStat.PEchosen)',0,b); %Zscored PEs
+[b.stim_times.unsignedpes_fsl,b.stim_times.unsignedpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'unsignedPEs',out.suffStat.PEunsigned'.*b.feedback_censor,0,b);
+[b.stim_times.signedpes_fsl,b.stim_times.signedpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'signedPEs',out.suffStat.PEsigned'.*b.feedback_censor,0,b);
+[b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPosPEs',out.suffStat.PEchosen_pos'.*b.feedback_censor,0,b);
+[b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenNegPEs',out.suffStat.PEchosen_neg'.*b.feedback_censor,0,b);
+[b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEs',out.suffStat.PEchosen'.*b.feedback_censor,0,b);
+[b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEsZscored',zscore(out.suffStat.PEchosen)'.*b.feedback_censor,0,b); %Zscored PEs
 %[b.stim_times.chosenpes_fsl,b.stim_times.chosenpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'chosenPEs_standardized',out.suffStat.PEchosen_standardized',0,b);
-[b.stim_times.pospes_fsl,b.stim_times.pospes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'posPEs',out.suffStat.PEplus',0,b);
-[b.stim_times.negpes_fsl,b.stim_times.negpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'negPEs',out.suffStat.PEminus',0,b);
+[b.stim_times.pospes_fsl,b.stim_times.pospes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'posPEs',out.suffStat.PEplus'.*b.feedback_censor,0,b);
+[b.stim_times.negpes_fsl,b.stim_times.negpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'negPEs',out.suffStat.PEminus'.*b.feedback_censor,0,b);
 plusMinusPE=(out.suffStat.PEplus+out.suffStat.PEminus*-1)'; %Combine the two into one regressor
 [b.stim_times.pos_negpes_fsl,b.stim_times.pos_negpes_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'pos_negPEs',plusMinusPE,0,b);
 
 % Value Regressors -- aligned with feedback
-[b.stim_times.val_fsl,b.stim_times.val_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valueFeedbackAligned',out.suffStat.value',0,b);
-[b.stim_times.valdiff_fsl,b.stim_times.valdiff_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valueFeedbackAligned_diff',out.suffStat.value_diff',0,b);
-[b.stim_times.valchosen_fsl,b.stim_times.valchosen_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valueFeedbackAligned_chosen',out.suffStat.value_chosen',0,b);
+[b.stim_times.val_fsl,b.stim_times.val_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valueFeedbackAligned',out.suffStat.value'.*b.feedback_censor,0,b);
+[b.stim_times.valdiff_fsl,b.stim_times.valdiff_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valueFeedbackAligned_diff',out.suffStat.value_diff'.*b.feedback_censor,0,b);
+[b.stim_times.valchosen_fsl,b.stim_times.valchosen_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valueFeedbackAligned_chosen',out.suffStat.value_chosen'.*b.feedback_censor,0,b);
 
 %Different value flavor regressor
-[b.stim_times.valchosen_fsl,b.stim_times.valchosen_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valuePlus1DiffFeedbackAligned_chosen',out.suffStat.vtplus1_chosen_diff',0,b);
-[b.stim_times.valchosen_fsl,b.stim_times.valchosen_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valuePlus1DiffFeedbackAligned_chosen_Zscored',zscore(out.suffStat.vtplus1_chosen_diff)',0,b); %Zscored value
+[b.stim_times.valchosen_fsl,b.stim_times.valchosen_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valuePlus1DiffFeedbackAligned_chosen',out.suffStat.vtplus1_chosen_diff'.*b.feedback_censor,0,b);
+[b.stim_times.valchosen_fsl,b.stim_times.valchosen_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valuePlus1DiffFeedbackAligned_chosen_Zscored',zscore(out.suffStat.vtplus1_chosen_diff)'.*b.feedback_censor,0,b); %Zscored value
+
+%VB vtplus1 max idea
+[b.stim_times.valchosen_fsl,b.stim_times.valchosen_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valuePlus1DiffFeedbackAligned_max',out.suffStat.vtplus1_max'.*b.feedback_censor,0,b); 
+[b.stim_times.valchosen_fsl,b.stim_times.valchosen_spmg]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'valuePlus1DiffFeedbackAligned_max_Zscored',zscore(out.suffStat.vtplus1_max)'.*b.feedback_censor,0,b); %Zscored value
 
 % Stake vector
 [b.stim_times.rew_stake,b.stim_times.rew_stake]=write3Ddeconv_startTimes(data_dump_str,feedback.event_beg,feedback.event_end,'stakeFeedbackAligned',out.suffStat.stake',0,b);
