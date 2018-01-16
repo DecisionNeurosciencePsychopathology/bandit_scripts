@@ -2,7 +2,7 @@
 #  running glmer with nAGQ = 0 to speed it up, can remove for final analysis for the paper
 #  separate sets of scripts for fMRI/behavior-only samples because fMRI does
 #  more detailed plots in bandit_beh_analyses
-setwd("~/Box Sync/skinner/projects_analyses/Project Bandit/R")
+setwd("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_fMRI_df_with_PE/")
 library(readr)
 library(lme4)
 library(lmerTest)
@@ -31,11 +31,13 @@ library(multcompView)
 
 
 trial_df <-
-  read_csv("~/code/bandit_scripts/data/scanner/bandit_df1.csv")
+  read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_fMRI_df_with_PE/bandit_df1.csv")
 View(trial_df)
 sub_df <-
-  read_csv("~/code/bandit_scripts/data/scanner/bandit_df2.csv")
+  read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_fMRI_df_with_PE/bandit_df2.csv")
 View(sub_df)
+sub_df = sub_df %>% as_tibble %>% arrange(ID)
+
 sub_df$group1245 <- as.factor(sub_df$group1245)
 sub_df$group12467 <- as.factor(sub_df$group12467)
 
@@ -59,7 +61,7 @@ missing_ind_chars = aggr(
 # all missingness <8%, could impute
 
 # sample characteristics: looks reasonable
-chars <- as.data.frame(sub_df[, c(9:12, 14, 20, 22)])
+chars <- as.data.frame(sub_df[, c(9:13,2:3,18,43:46)])
 c1 <-
   compareGroups(
     chars,
@@ -70,14 +72,14 @@ c1 <-
 t1 <-
   createTable(
     c1,
-    hide = c(sex = "FEMALE", list(race = c(
-      "WHITE", "ASIAN PACIFIC"
-    ))),
+    # hide = c(sex = "FEMALE", list(race = c(
+    #   "WHITE", "ASIAN PACIFIC"
+    # ))),
     hide.no = 0,
-    digits = 0,
+    digits = 1,
     show.n = TRUE
   )
-export2html(t1, "t_bandit_beh_by_group.html")
+export2html(t1, "t_bandit_beh_scan_by_group.html")
 
 # coarse overview of behavior
 hist(sub_df$spont_switch_err, breaks = 50)
@@ -88,15 +90,15 @@ hist(sub_df$error_NOS)
 
 # summary(m1 <- lm(spont_switch_err ~ group1245 + education + WTAR_SCALED_SCORE + EXITtot, data = sub_df))
 # anova(m1)
-summary(m2 <-
-          lm(
-            error_NOS ~ group1245 + education + WTAR_SCALED_SCORE + EXITtot,
-            data = sub_df
-          ))
-anova(m2)
-summary(m3 <-
-          glm.nb(spont_switch_err ~ group1245 +  WTAR_SCALED_SCORE + EXITtot, data = sub_df))
-car::Anova(m3, type = 'III')
+# summary(m2 <-
+#           lm(
+#             error_NOS ~ group1245 + education + WTAR_SCALED_SCORE + EXITtot,
+#             data = sub_df
+#           ))
+# anova(m2)
+# summary(m3 <-
+#           glm.nb(spont_switch_err ~ group1245 +  WTAR_SCALED_SCORE + EXITtot, data = sub_df))
+# car::Anova(m3, type = 'III')
 
 
 # merge trial-by-trial and subject-level data
@@ -105,7 +107,7 @@ bdf <- merge(trial_df, sub_df)
 summary(bdf)
 
 bdf$Group <-
-  recode(
+  dplyr::recode(
     bdf$group1245,
     `1` = "Controls",
     `2` = "Depressed",
@@ -116,7 +118,7 @@ contrasts(bdf$Group) <- contr.treatment(levels(bdf$Group),
                                         base = which(levels(bdf$Group) == 'Attempters'))
 
 sub_df$Group <-
-  recode(
+  dplyr::recode(
     sub_df$group1245,
     `1` = "Controls",
     `2` = "Depressed",
@@ -162,23 +164,24 @@ bdf = bdf %>% group_by(ID) %>%
     v_max_lag = lag(value_max),
     v_max_lag_mfx = lag(value_max_vba_mfx),
     v_max_lag2_mfx = lag(value_max_vba_mfx,2),
-    
+    PE_chosen_vba_lag = lag(PE_chosen_vba_mfx),
     v_chosen_lag_mfx  = lag(value_chosen_vba_mfx),
     h_lag = lag(H),
-    h_lag_mfx = lag(H_vba_mfx)
+    h_lag_mfx = lag(H_vba_mfx),
+    RT_lag = lag(RT)
   ) %>% ungroup()
 bdf$stay <- bdf$choice_numeric == bdf$choice_num_lead
+bdf$stay_p <- NA
+bdf$stay_p[bdf$stay==TRUE] <- 1
+bdf$stay_p[bdf$stay==FALSE] <- 0
 bdf = bdf %>% group_by(ID) %>%
   mutate(stay_lag = lag(stay)) %>% ungroup()
 bdf$stay <- as.factor(bdf$stay)
 bdf$stay_lag <- as.factor(bdf$stay_lag)
 
 bdf$trial_scaled <- scale(bdf$Trial)
-bdf$stay_p <- NA
-bdf$stay_p[bdf$stay] <- 1
-bdf$stay_p[!bdf$stay] <- 0
 bdf$past_rew <-
-  recode(bdf$reinf_lag, `0` = "After omission", `1` = "After reward")
+  dplyr::recode(bdf$reinf_lag, `0` = "After omission", `1` = "After reward")
 bdf$correct_incorrect <- as.factor(bdf$correct_incorrect)
 
 bdf$choiceA <- NA
@@ -191,6 +194,10 @@ bdf$choiceA[bdf$multinomial_choice!="A"] <- 0
 bdf$choiceB[bdf$multinomial_choice!="B"] <- 0
 bdf$choiceC[bdf$multinomial_choice!="C"] <- 0
 
+bdf$v_chosen_lag_updated_mfx <- NA
+bdf$v_chosen_lag_updated_mfx[which(bdf$choice_numeric==1)] <- bdf$value_A_stim_vba_mfx[which(bdf$choice_numeric==1)]
+bdf$v_chosen_lag_updated_mfx[which(bdf$choice_numeric==2)] <- bdf$value_B_stim_vba_mfx[which(bdf$choice_numeric==2)]
+bdf$v_chosen_lag_updated_mfx[which(bdf$choice_numeric==3)] <- bdf$value_C_stim_vba_mfx[which(bdf$choice_numeric==3)]
 
 ##############################
 # variables legend ###########
@@ -205,13 +212,47 @@ bdf$choiceC[bdf$multinomial_choice!="C"] <- 0
 # v_chosen_lag -- value of a(t),  v(t)
 # v_chosen_lag_updated -- value of a(t) following r(t), v(a_t,t+1)
 # test regression
-bdf$v_chosen_lag_mc <- scale(bdf$v_chosen_lag)
+bdf$v_chosen_lag_mc <- scale(bdf$v_chosen_lag, center = TRUE, scale = TRUE)
 bdf$h_lag_mc <- scale(bdf$h_lag)
 
 bdf$v_chosen_lag_mfx_mc <-  scale(bdf$v_chosen_lag_mfx)
 bdf$h_lag_mfx_mc <- scale(bdf$h_lag_mfx)
 bdf$h_mc <- scale(bdf$H)
 bdf$h_mfx_mc <- scale(bdf$H_vba_mfx)
+
+bdf$stake_n <- as.numeric(bdf$stake)
+bdf$stake_n_lag <- as.numeric(bdf$stake_lag)
+bdf$reinf_n_lag <- as.numeric(bdf$reinf_lag)
+
+# what about the difference between Vmax and Vchosen
+bdf$v_ch_diff <- bdf$v_chosen_lag_mfx - bdf$v_max_lag_mfx
+
+bdf$v_ch_logr <- log(bdf$v_chosen_lag_mfx_mc/bdf$v_max_lag_mfx)
+
+# exclude subjects who pressed one button repeatedly
+gdf <- bdf[!bdf$bad,]
+
+
+# check correlations
+
+
+
+chars <- as.data.frame(bdf[, c("v_chosen_lag_mfx","v_max_lag_mfx", "v_chosen_lag_updated_mfx", "v_ch_diff", "PE_chosen_vba_mfx","PE_chosen_vba_lag", "reinf_n","reinf_n_lag", "h_lag_mfx","stay_p", "stake_n", "stake_n_lag","RT")])
+
+# pdf("reg correlations.pdf", width=14, height=14)
+cors <- corr.test(chars, use = "pairwise",method="pearson", alpha=.05)
+
+# Michelle to check all histograms for herself
+
+
+corrplot(cors$r, cl.lim=c(-1,1),
+         method = "circle", tl.cex = 1.5, type = "upper", tl.col = 'black',
+         order = "AOE", diag = FALSE,
+         addCoef.col="black", addCoefasPercent = FALSE,
+         p.mat = cors$p, sig.level=0.05, insig = "blank")
+# p.mat = 1-abs(cormat), sig.level=0.75, insig = "blank")
+# dev.off()
+
 
 # make sure simple bivariate effect of entropy is negative
 sm0 <-
@@ -224,10 +265,12 @@ sm0 <-
 summary(sm0)
 
 
-# simple, reasonably complete model using individual VBA fits
+# all analyses will be mfx going forward, ditch the prefix
+
+# does H or V contain more information about stay/switch?
 sm1 <-
   glmer(
-    stay ~ reinf * stake_lag + v_chosen_lag_mc + stake + trial_scaled + h_mc + stay_lag +
+    stay ~ reinf * stake_lag + h_lag_mfx_mc + stake + trial_scaled + stay_lag +
       (1 | ID),
     family = binomial(),
     data = bdf,
@@ -235,59 +278,88 @@ sm1 <-
 summary(sm1)
 car::Anova(sm1)
 
-# mfx improves fits:
-sm1mfx <-   glmer(
-  stay ~ reinf * stake_lag + v_chosen_lag_mfx_mc + stake + trial_scaled + h_mfx_mc + stay_lag +
+# mfx improves fits?  Not in the full sample, apparently
+sm2 <-   glmer(
+  stay ~ reinf * stake_lag +  value_max_vba_mfx + stake + trial_scaled +  stay_lag +
     (1 | ID),
   family = binomial(),
   data = bdf,
   nAGQ = 0)
-summary(sm1mfx)
-car::Anova(sm1mfx)
-anova(sm1,sm1mfx)
+summary(sm2)
+car::Anova(sm2)
+anova(sm1,sm2)
 
-# add reasonable interactions: that also helps
-sm2mfx <-   glmer(
-  stay ~ reinf * stake_lag + reinf*h_mfx_mc + v_chosen_lag_mfx_mc*h_mfx_mc + stake + trial_scaled + stay_lag +
+# only a slight advantage upon adding H to V
+sm2h <-   glmer(
+  stay ~ reinf * stake_lag +  value_max_vba_mfx + h_mfx_mc + stake + trial_scaled +  stay_lag +
     (1 | ID),
   family = binomial(),
   data = bdf,
   nAGQ = 0)
-summary(sm2mfx)
-car::Anova(sm2mfx)
-anova(sm1mfx,sm2mfx)
+summary(sm2h)
+car::Anova(sm2h)
+anova(sm2,sm2h)
 
-# final model before sensitivity analyses:
-sm2mfxG <-   glmer(
-  stay ~ reinf * stake_lag + reinf*h_mfx_mc + reinf * Group + v_chosen_lag_mfx_mc*Group*h_mfx_mc + stake + trial_scaled + stay_lag +
-    (1 | ID),
+# random effect of choice autocorrelation: massivissimo advantage, Chisq = 109.69
+sm2h_stay_lag <-   glmer(
+  stay ~ reinf * stake_lag +  value_max_vba_mfx + h_mfx_mc + stake + trial_scaled +  stay_lag +
+    (stay_lag | ID),
   family = binomial(),
   data = bdf,
   nAGQ = 0)
-summary(sm2mfxG)
-car::Anova(sm2mfxG)
-anova(sm2mfx,sm2mfxG)
+summary(sm2h_stay_lag)
+car::Anova(sm2h_stay_lag)
+anova(sm2h,sm2h_stay_lag)
 
-lsm <- lsmeans(sm2mfxG,"Group", by = c("h_mfx_mc","v_chosen_lag_mfx_mc"), at = list(v_chosen_lag_mfx_mc = c(0.1,0.9), h_mfx_mc = c(-1,1)))
+
+# V model dominates over H alone:
+# sm1: stay ~ reinf * stake_lag + h_lag_mfx_mc + stake + trial_scaled + 
+#   sm1:     stay_lag + (1 | ID)
+# sm2: stay ~ reinf * stake_lag + v_chosen_lag_mfx + stake + trial_scaled + 
+#   sm2:     h_mfx_mc + stay_lag + (1 | ID)
+# Df   AIC   BIC logLik deviance  Chisq Chi Df Pr(>Chisq)    
+# sm1 12 31881 31983 -15929    31857                             
+# sm2 13 30756 30866 -15365    30730 1127.1      1  < 2.2e-16 ***
+
+
+# final model w/o group
+sm3 <-   glmer(
+  stay ~ reinf * stake * trial_scaled + reinf * v_chosen_lag_mfx_mc + v_chosen_lag_mfx_mc * trial_scaled + reinf * stay_lag + v_chosen_lag_mfx_mc * stay_lag +
+    (stay_lag | ID),
+  family = binomial(),
+  data = gdf,
+  nAGQ = 0)
+summary(sm3)
+car::Anova(sm3)
+# anova(sm2,sm3)
+
+# final model before sensitivity analyses, a little over-engineered but fits well:
+sm3g <-   glmer(
+  stay ~ reinf * stake * trial_scaled + reinf * Group + v_chosen_lag_mfx_mc * Group + reinf * stay_lag + v_chosen_lag_mfx_mc * stay_lag * Group +
+    (stay_lag | ID),
+  family = binomial(),
+  data = gdf,
+  nAGQ = 0)
+summary(sm3g)
+car::Anova(sm3g, type = 'III')
+anova(sm3,sm3g)
+
+lsm <- lsmeans::lsmeans(sm3g,"Group", by = c("stay_lag","v_chosen_lag_mfx_mc"), at = list(v_chosen_lag_mfx_mc = c(0,1)))
 plot(lsm, horiz = F)
 CLD <- cld(lsm)
 
-# control for beta and fit -- those do explain group differences
-sm2mfxGbetaL <-   glmer(
-  stay ~ reinf * stake_lag + reinf*h_mfx_mc + reinf * Group + reinf * beta_vba_mfx + reinf * L_vba_mfx + 
-    v_chosen_lag_mfx_mc*Group*h_mfx_mc + 
-    v_chosen_lag_mfx_mc*beta_vba_mfx*h_mfx_mc + 
-    v_chosen_lag_mfx_mc*L_vba_mfx*h_mfx_mc + 
-    stake + trial_scaled + stay_lag +
-    (1 | ID),
+# control for beta and fit -- main effects of those do not explain group differences
+sm3gBetaL <-   glmer(
+  stay ~ reinf * stake * trial_scaled + reinf * Group + v_chosen_lag_mfx_mc * Group + reinf * stay_lag + v_chosen_lag_mfx_mc * stay_lag * Group + beta_mfx_data + L_vba_mfx +
+    (stay_lag | ID),
   family = binomial(),
-  data = bdf,
+  data = gdf,
   nAGQ = 0)
-summary(sm2mfxGbetaL)
-car::Anova(sm2mfxGbetaL)
-anova(sm2mfx,sm2mfxG)
+summary(sm3gBetaL)
+car::Anova(sm3gBetaL)
+anova(sm3g,sm3gBetaL)
 
-
+## TO DO with complete data:
 # control for EXIT and education: they mostly explain group differences
 sm2mfxG_sens <-   glmer(
   stay ~ reinf * stake_lag*Group + 
@@ -299,13 +371,15 @@ sm2mfxG_sens <-   glmer(
     stake + trial_scaled + stay_lag +
     (1 | ID),
   family = binomial(),
-  data = bdf,
+  data = gdf,
   nAGQ = 0)
 summary(sm2mfxG_sens)
 car::Anova(sm2mfxG_sens)
 
 bdf$stay_lag <- as.factor(bdf$stay_lag)
-# previous analysis of value of the stimulus about to be chosen:
+
+## archival
+#  previous analysis of value of the stimulus about to be chosen:
 m_old <-   glmer(
   stay ~ reinf * stake_lag + reinf*h_mfx_mc + reinf * Group + value_chosen_vba_mfx*Group*h_mfx_mc + stake + trial_scaled + stay_lag +
     (1 | ID),
@@ -314,63 +388,79 @@ m_old <-   glmer(
   nAGQ = 0)
 summary(m_old)
 car::Anova(m_old)
-ls_m_old <- lsmeans(m_old,"value_chosen_vba_mfx", by = c("Group","h_mfx_mc"), at = list(value_chosen_vba_mfx = c(0.1,0.9), h_mfx_mc = c(-1,1)))
+ls_m_old <- lsmeans::lsmeans::lsmeans(m_old,"value_chosen_vba_mfx", by = c("Group","h_mfx_mc"), at = list(value_chosen_vba_mfx = c(0.1,0.9), h_mfx_mc = c(-1,1)))
 plot(ls_m_old, horiz = F)
 
 # Michael's suggestion: predict choice value
-
+# current favorite as of 1/11/17
 vm1 <- lmer(
-  value_chosen_vba_mfx ~ reinf * Group + stay * Group + 
-  reinf*h_mfx_mc + 
-  h_mfx_mc*Group + 
-  stake  + trial_scaled + stay_lag +
+  value_chosen_vba_mfx ~ reinf * stay_lag * Group + reinf_lag * Group +
+  stake  + trial_scaled + 
     (1 | ID),
-  data = bdf)
+  data = gdf)
 summary(vm1)
 car::Anova(vm1)
 plot(allEffects(vm1))
+lsm <- lsmeans::lsmeans(vm1,"reinf", by = c("Group"))
+plot(lsm, horiz = F)
+
+
+# before we get too excited, control for beta and fit
+vm1betaL <- lmer(
+  value_chosen_vba_mfx ~ reinf * stay_lag * Group + reinf_lag * Group +
+    stake  + trial_scaled + 
+    beta_mfx_data + L_vba_mfx +
+    (1 | ID),
+  data = gdf)
+summary(vm1betaL)
+car::Anova(vm1betaL)
 
 # account for previously chosen value or vmax: this model is getting too complicated too quickly
 vm2 <- lmer(
-  value_chosen_vba_mfx ~ reinf * stay * Group + 
-    reinf*h_mfx_mc + v_max_lag_mfx*Group +
-    h_mfx_mc*Group + 
-    stake  + trial_scaled + stay_lag +
+  value_chosen_vba_mfx ~ 
+    reinf * stay_lag * Group + reinf_lag * Group +
+    stake  + trial_scaled + 
+    v_max_lag_mfx*Group +
     (1 | ID),
-  data = bdf)
+  data = gdf)
 summary(vm2)
 car::Anova(vm2)
 plot(allEffects(vm2))
+lsm <- lsmeans::lsmeans(vm2,"reinf", by = c("Group"))
+plot(lsm, horiz = F)
+
+
 
 # simplify to basic effects: still the same stay*Group interaction
 vm3 <- lmer(
   value_chosen_vba_mfx ~ reinf * stay * Group + 
     stake  + trial_scaled + stay_lag +
     (1 | ID),
-  data = bdf)
+  data = gdf)
 summary(vm3)
 car::Anova(vm3)
 plot(allEffects(vm3))
-lsm <- lsmeans(vm3, "stay", by = "Group")
+lsm <- lsmeans::lsmeans(vm3, "stay", by = "Group")
 plot(lsm, horiz = F)
-lsm <- lsmeans(vm3, "reinf", by = "Group")
+cld(lsm)
+lsm <- lsmeans::lsmeans(vm3, "reinf", by = "Group")
 plot(lsm, horiz = F)
 
 #  see on what trials they pick the best option
 
 bm1 <-  glmer(
-  choice_numeric==best_value_option_vba_mfx  ~ reinf*stay + reinf*Group + stay * Group +
-    stake + trial_scaled * Group +
+  choice_numeric==best_value_option_vba_mfx  ~ reinf*stay_lag + reinf*Group + stay_lag*Group +
+    stake + trial_scaled +
     (1 | ID),
   family = binomial(),
-  data = bdf,
+  data = gdf,
   nAGQ = 0)
 summary(bm1)
 car::Anova(bm1)
 plot(allEffects(bm1))
-lsm <- lsmeans(bm1, "stay", by = "Group")
+lsm <- lsmeans::lsmeans(bm1, "stay_lag", by = "Group")
 plot(lsm, horiz = F)
-lsm <- lsmeans(bm1, "reinf", by = "Group")
+lsm <- lsmeans::lsmeans(bm1, "reinf", by = "Group")
 plot(lsm, horiz = F)
 
 # the above looks like an altered EE tradeoff, let's look at effects of entropy again
@@ -386,25 +476,25 @@ bmh1 <-  glmer(
   nAGQ = 0)
 summary(bmh1)
 car::Anova(bmh1)
-lsm <- lsmeans(bmh1, "reinf", by = "Group")
+lsm <- lsmeans::lsmeans(bmh1, "reinf", by = "Group")
 plot(lsm, horiz = F)
 
 bmhv1 <-  glmer(
   choice_numeric==best_value_option_vba_mfx  ~ 
     reinf*Group + 
     stake + trial_scaled + 
-     h_mfx_mc * Group + v_max_lag_mfx * Group +
+     h_mfx_mc * Group + v_chosen_lag_mfx_mc * Group +
     (1 | ID),
   family = binomial(),
   data = bdf,
   nAGQ = 0)
 summary(bmhv1)
 car::Anova(bmhv1)
-lsm <- lsmeans(bmhv1, "reinf", by = "Group")
+lsm <- lsmeans::lsmeans(bmhv1, "reinf", by = "Group")
 plot(lsm, horiz = F)
-lsm <- lsmeans(bmhv1, "v_max_lag_mfx", by = "Group", at = list(v_max_lag_mfx = c(0.1,0.9)))
+lsm <- lsmeans::lsmeans(bmhv1, "v_chosen_lag_mfx_mc", by = "Group", at = list(v_chosen_lag_mfx_mc = c(0.1,0.9)))
 plot(lsm, horiz = F)
-lsm <- lsmeans(bmhv1, "h_mfx_mc", by = "Group", at = list(h_mfx_mc = c(-2,2)))
+lsm <- lsmeans::lsmeans(bmhv1, "h_mfx_mc", by = "Group", at = list(h_mfx_mc = c(-2,2)))
 plot(lsm, horiz = F)
 
 # account for stay -- not sure about the interpretation of this model, although switches can be understood as exploratory
@@ -420,23 +510,159 @@ bmhv2 <-  glmer(
   nAGQ = 0)
 summary(bmhv2)
 car::Anova(bmhv2)
-lsm <- lsmeans(bmhv2, "reinf", by = "Group")
+lsm <- lsmeans::lsmeans(bmhv2, "reinf", by = "Group")
 plot(lsm, horiz = F)
-lsm <- lsmeans(bmhv2, "v_max_lag_mfx", by = "Group", at = list(v_max_lag_mfx = c(0.1,0.9)))
+lsm <- lsmeans::lsmeans(bmhv2, "v_max_lag_mfx", by = "Group", at = list(v_max_lag_mfx = c(0.1,0.9)))
 plot(lsm, horiz = F)
-lsm <- lsmeans(bmhv2, "h_mfx_mc", by = "Group", at = list(h_mfx_mc = c(-2,2)))
+lsm <- lsmeans::lsmeans(bmhv2, "h_mfx_mc", by = "Group", at = list(h_mfx_mc = c(-2,2)))
 plot(lsm, horiz = F)
-lsm <- lsmeans(bmhv2, "stay", by = c("Group", "reinf"))
+lsm <- lsmeans::lsmeans(bmhv2, "stay", by = c("Group", "reinf"))
 plot(lsm, horiz = F)
-lsm <- lsmeans(bmhv2, "stay", by = "reinf")
+lsm <- lsmeans::lsmeans(bmhv2, "stay", by = "reinf")
 plot(lsm, horiz = F)
 
 
-# that's a really nice effect, but is it all driven by value?
+# RTs: start simple
+
+rt1 <- lmerTest::lmer(RT  ~ 
+                             reinf_lag + stay_lag + 
+                             stake_lag + trial_scaled + 
+                             (1 | ID),
+                           data = gdf[gdf$RT>0,])
+summary(rt1)
+car::Anova(rt1)
+
+rt2 <- lmerTest::lmer(RT  ~ 
+                        reinf_lag + stay_lag + 
+                        stake_lag + trial_scaled + v_max_lag_mfx +
+                        (1 | ID),
+                      data = gdf[gdf$RT>0,])
+summary(rt2)
+car::Anova(rt2)
+
+rt2chosen <- lmerTest::lmer(RT  ~ 
+                              reinf_lag + stay_lag + 
+                              stake_lag + trial_scaled + v_max_lag_mfx + v_ch_diff +
+                              (1 | ID),
+                            data = gdf[gdf$RT>0,])
+summary(rt2chosen)
+car::Anova(rt2chosen)
+anova(rt2,rt2chosen)
+
+# add PE: seems like a pretty good model
+rt2chosen <- lmerTest::lmer(log(RT)  ~ log(RT_lag) +
+                              reinf_lag + stay_lag + 
+                              stake_lag + trial_scaled + v_max_lag_mfx + v_ch_diff + abs(PE_chosen_vba_lag) + 
+                              (1 | ID),
+                            data = gdf[gdf$RT>0,])
+summary(rt2chosen)
+car::Anova(rt2chosen)
+plot(allEffects(rt2chosen))
+anova(rt2,rt2chosen)
+
+# what about future choices?  They don't seem to be reflected in prior RT
+
+# 
+# pdf(file = "rt by ee.pdf",
+#     width = 10,
+#     height = 6)
+
+ggplot(gdf[gdf$RT>0,],aes(x = v_ch_diff, y = log(RT))) + stat_smooth(method = "gam") #+ facet_wrap(~ID) 
+# ggplot(gdf[gdf$RT>0,],aes(x = v_max_lag_mfx, y = log(RT))) + geom_point() + facet_wrap(~ID)
+
+# dev.off()
+
+# deep breath
+# add group
+
+rt_g1 <- lmerTest::lmer(log(RT)  ~ log(RT_lag) +
+                              reinf_lag*Group + stake_lag*Group + stay_lag*Group + 
+                              trial_scaled + v_max_lag_mfx*Group + v_ch_diff*Group + abs(PE_chosen_vba_lag)*Group + 
+                              (1 | ID),
+                            data = gdf[gdf$RT>0 & gdf$RT<4000,])
+summary(rt_g1)
+car::Anova(rt_g1)
+plot(allEffects(rt_g1))
+
+
+
+rt_bmhv2 <- lmerTest::lmer(RT  ~ 
+                             reinf_lag + 
+                             stake + trial_scaled + 
+                             v_chosen_lag_mfx_mc * Group +
+                             stay * reinf * Group + stay_lag +
+                             (1 | ID),
+                           data = bdf)
+summary(rt_bmhv2)
+car::Anova(rt_bmhv2)
+
+# let's first find the 'best' RT model
+# start simple
+rt_s1 <- lmerTest::lmer(RT  ~
+                             stake + trial_scaled + 
+                             stay * reinf +
+                             (1 | ID),
+                           data = bdf[bdf$RT>100,])
+summary(rt_s1)
+car::Anova(rt_s1)
+
+# add lagged RT
+rt_s2 <- lmerTest::lmer(RT  ~ RT_lag +
+                          stake + trial_scaled + 
+                          stay * reinf +
+                          (1 | ID),
+                        data = bdf[bdf$RT>100,])
+summary(rt_s2)
+car::Anova(rt_s2)
+
+# reasonably complete simple model-free model of RT
+rt_s3 <- lmerTest::lmer(RT  ~ RT_lag + stay_lag + 
+                           trial_scaled + 
+                          reinf + stay_lag*reinf_lag +
+                          (1 | ID),
+                        data = bdf[bdf$RT>100,])
+summary(rt_s3)
+car::Anova(rt_s3)
+plot(allEffects(rt_s3))
+# they particularly slow down after win-switch errors and speed up after win-switch wins
+
+# anything with group at this early stage?  Removed the clairvoyant effect of current stay.
+rt_sg3 <- lmerTest::lmer(RT  ~ RT_lag*Group + RT_lag*age +
+                          trial_scaled + 
+                          reinf + stay_lag*reinf_lag*Group + stay_lag*reinf_lag*age +
+                          (1 | ID),
+                        data = bdf[bdf$RT>100,])
+summary(rt_sg3)
+car::Anova(rt_sg3)
+plot(allEffects(rt_sg3))
+# small differences in RT autocorrelation (A<D), maybe slowing after switches (A<C) and maybe speeding up after rewards (C>D,I)
+
+# add max value and entropy, remove clairvoyant 'reinf'
+rt_sg4 <- lmerTest::lmer(RT  ~ RT_lag*Group + 
+                           trial_scaled + stay_lag*reinf_lag +
+                           stay_lag*Group + reinf_lag*Group + 
+                           v_max_lag_mfx*Group + #value_chosen_vba_mfx*Group +
+                           (1 | ID),
+                         data = bdf[bdf$RT>100,])
+summary(rt_sg4)
+car::Anova(rt_sg4)
+plot(allEffects(rt_sg4))
+# anova(rt_sg3,rt_sg4)
+
+rt_sg5 <- lmerTest::lmer(RT  ~ RT_lag*Group + 
+                           trial_scaled + stay_lag*reinf_lag +
+                           stay_lag*Group + reinf_lag*Group + 
+                           value_chosen_vba_mfx*Group +
+                           (1 | ID),
+                         data = bdf[bdf$RT>100,])
+summary(rt_sg5)
+car::Anova(rt_sg5)
+plot(allEffects(rt_sg5))
+
 
 # skip the graphics for now
 
-# groups don't differ significantly in their earnings
+# groups differ slightly in their earnings, C>D
 rm1 <-   glmer(
   reinf ~ Group + stake + trial_scaled  +
     (1 | ID),
@@ -447,9 +673,18 @@ rm1 <-   glmer(
 summary(rm1)
 car::Anova(rm1)
 
-
-# exclude subjects who pressed one button repeatedly
-gdf <- bdf[!bdf$bad,]
+#  what about a more extended model predicting wins?
+rm2 <-   glmer(
+  reinf ~
+  stake + trial_scaled + 
+  h_mfx_mc * Group + v_max_lag_mfx * Group +
+  stay * Group +
+  (1 | ID),
+family = binomial(),
+data = bdf,
+nAGQ = 0)
+summary(rm2)
+car::Anova(rm2)
 
 # # graphical sanity checks on lagged variables, because order_by=Trial does not seem to work here
 # id <-  unique(bdf$ID)[33]
@@ -464,7 +699,9 @@ gdf <- bdf[!bdf$bad,]
 # ggplot(bdf[i,], aes(x = Trial)) + geom_point(aes(y = bdf$stay[i], color = "stay")) + geom_point(aes(y = bdf$stay_lag[i], color = "stay_lag"))
 
 
-ggplot(na.omit(bdf[, c(1:17, 42:dim(bdf)[2])]), aes(x = v_chosen_lag_mfx_mc, y = stay_p, color = Group)) + stat_smooth(
+#ggplot(na.omit(bdf[, c(1:17, 42:dim(bdf)[2])]), aes(x = v_chosen_lag_mfx_mc, y = stay_p, color = Group)) + stat_smooth(
+
+ggplot(bdf, aes(x = v_chosen_lag_mfx_mc, y = stay_p, color = Group)) + stat_smooth(
   method = "glm",
   method.args = list(family = "binomial"),
   se = TRUE
@@ -472,59 +709,59 @@ ggplot(na.omit(bdf[, c(1:17, 42:dim(bdf)[2])]), aes(x = v_chosen_lag_mfx_mc, y =
 
 
 # RL model parameters across groups
-ggplot(data = sub_df, aes(y = alpha_win_vba_mfx, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
-ggplot(data = sub_df, aes(y = alpha_loss_vba_mfx, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
-ggplot(data = sub_df, aes(y = decay_vba_mfx, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
-ggplot(data = sub_df, aes(y = beta, x = Group, color = Group)) + geom_boxplot() + geom_jitter() + stat_smooth(method = "lm", formula = beta ~ Group, se=T,
+ggplot(data = sub_df, aes(y = alpha_win_mfx_data, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+ggplot(data = sub_df, aes(y = alpha_loss_mfx_data, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+ggplot(data = sub_df, aes(y = decay_mfx_data, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+ggplot(data = sub_df, aes(y = beta_mfx_data, x = Group, color = Group)) + geom_boxplot() + geom_jitter() + stat_smooth(method = "lm", formula = beta ~ Group, se=T,
                                                                                                               level=0.95)
 ggplot(data = sub_df, aes(y = beta_vba_mfx, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
 
-ggplot(data = sub_df, aes(y = L, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+ggplot(data = sub_df, aes(y = L_vba_mfx, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
 
-plot(sub_df$alpha_loss, sub_df$alpha_loss_vba_mfx)
+plot(sub_df$alpha_win_df2, sub_df$alpha_win_mfx_data)
 plot(sub_df$alpha_win, sub_df$alpha_win_vba_mfx)
 plot(sub_df$decay, sub_df$decay_vba_mfx)
 plot(sub_df$beta, sub_df$beta_vba_mfx)
 
 pm1 <-
-  manova(cbind(alpha_win, alpha_loss, decay, beta) ~ Group, data = sub_df)
+  manova(cbind(alpha_loss_mfx_data, alpha_win_mfx_data, decay_mfx_data, beta_mfx_data) ~ Group, data = sub_df)
 summary(pm1)
 anova(pm1)
 
-pm1mfx <-
-  manova(
-    cbind(
-      alpha_win_vba_mfx,
-      alpha_loss_vba_mfx,
-      decay_vba_mfx,
-      beta_vba_mfx
-    ) ~ Group,
-    data = sub_df)
-summary(pm1mfx)
-anova(pm1mfx)
-
-
-pm2mfx <- lm(alpha_win_vba_mfx ~ Group, data = sub_df)
-summary(pm2mfx)
-anova(pm2mfx)
-
-pm3mfx <- lm(alpha_loss_vba_mfx ~ Group, data = sub_df)
-summary(pm3mfx)
-anova(pm3mfx)
-
-pm4mfx <- lm(decay_vba_mfx ~ Group, data = sub_df)
-summary(pm4mfx)
-anova(pm4mfx) #*
-
-pm5mfx <- lm(beta_vba_mfx ~ Group, data = sub_df)
-summary(pm5mfx)
-anova(pm5mfx)
-ggplot(data = sub_df, aes(y = beta_vba_mfx, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
-
-pm6mfx <- lm(L_vba_mfx ~ Group, data = sub_df)
-summary(pm6mfx)
-anova(pm6mfx)
-ggplot(data = sub_df, aes(y = L_vba_mfx, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+# pm1mfx <-
+#   manova(
+#     cbind(
+#       alpha_win_vba_mfx,
+#       alpha_loss_vba_mfx,
+#       decay_vba_mfx,
+#       beta_vba_mfx
+#     ) ~ Group,
+#     data = sub_df)
+# summary(pm1mfx)
+# anova(pm1mfx)
+# 
+# 
+# pm2mfx <- lm(alpha_win_vba_mfx ~ Group, data = sub_df)
+# summary(pm2mfx)
+# anova(pm2mfx)
+# 
+# pm3mfx <- lm(alpha_loss_vba_mfx ~ Group, data = sub_df)
+# summary(pm3mfx)
+# anova(pm3mfx)
+# 
+# pm4mfx <- lm(decay_vba_mfx ~ Group, data = sub_df)
+# summary(pm4mfx)
+# anova(pm4mfx) #*
+# 
+# pm5mfx <- lm(beta_vba_mfx ~ Group, data = sub_df)
+# summary(pm5mfx)
+# anova(pm5mfx)
+# ggplot(data = sub_df, aes(y = beta_vba_mfx, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+# 
+# pm6mfx <- lm(L_vba_mfx ~ Group, data = sub_df)
+# summary(pm6mfx)
+# anova(pm6mfx)
+# ggplot(data = sub_df, aes(y = L_vba_mfx, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
 
 
 
@@ -557,12 +794,14 @@ save(list = ls(all.names = TRUE), file = "bandit1.RData")
 
 ## proper replication using full behavioral data ________________________________________________________________________________________________________________________________________
 # read in data form larger behavioral sample
+
+
 beh_trial_df <-
-  read_csv("~/code/bandit_scripts/data/beh/bandit_df1.csv")
-View(beh_trial_df)
+  read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_behav_df_with_PE/bandit_df1.csv")
+# View(beh_trial_df)
 beh_sub_df <-
-  read_csv("~/code/bandit_scripts/data/beh/bandit_df2.csv")
-View(beh_sub_df)
+  read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_behav_df_with_PE/bandit_df2.csv")
+# View(beh_sub_df)
 
 beh_ids <- unique(beh_sub_df$ID)
 # Josh told me that some peopel from BSocial were inadvertently included: exclude them, turns out to be just one person
@@ -667,7 +906,7 @@ c4 <-
   beh_sub_df[!is.element(beh_sub_df$ID, repeaters) &
                !beh_sub_df$bad &
                !old_contr_depressed,]
-chars <- as.data.frame(c4[, c(9:14, 25:40)])
+chars <- as.data.frame(c4[, c(9:14, 18,19,43:46,2:3)])
 c5 <-
   compareGroups(
     chars,
@@ -678,12 +917,12 @@ c5 <-
 t5 <-
   createTable(c5,
               hide.no = 0,
-              digits = 0,
+              digits = 1,
               show.n = TRUE)
 export2html(t5, "age_equated_unique_beh_t_bandit_beh_by_group.html")
 
 beh_sub_df$Group <-
-  recode(
+  dplyr::recode(
     beh_sub_df$group1245,
     `1` = "Controls",
     `2` = "Depressed",
@@ -695,37 +934,37 @@ contrasts(beh_sub_df$Group) <-
   contr.treatment(levels(beh_sub_df$Group),
                   base = which(levels(beh_sub_df$Group) == 'Attempters'))
 
-rpm1 <-
-  manova(cbind(alpha_win_vba_mfx, alpha_loss_vba_mfx, decay_vba_mfx, beta_vba_mfx) ~ Group, data = beh_sub_df)
-summary(rpm1)
-anova(rpm1)
-
-rpm2 <- lm(alpha_win_vba_mfx ~ Group, data = beh_sub_df)
-summary(rpm2)
-anova(rpm2)
-
-rpm3 <- lm(alpha_loss_vba_mfx ~ Group, data = beh_sub_df)
-summary(rpm3)
-anova(rpm3)
-
-rpm4 <- lm(decay_vba_mfx ~ Group, data = beh_sub_df)
-summary(rpm4)
-anova(rpm4) #.
-ggplot(data = beh_sub_df, aes(y = decay_vba_mfx, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
-
-rpm5 <- lm(beta_vba_mfx ~ Group, data = beh_sub_df)
-summary(rpm5)
-anova(rpm5)
-ggplot(data = beh_sub_df, aes(y = beta, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
-ls_rpm5 <- lsmeans(rpm5, "Group")
-cld(ls_rpm5)
-
-rpm6 <- lm(L_vba_mfx ~ Group, data = beh_sub_df)
-summary(rpm6)
-anova(rpm6)
-ggplot(data = beh_sub_df, aes(y = L, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
-ls_rpm6 <- lsmeans(rpm6, "Group")
-cld(ls_rpm6)
+# rpm1 <-
+#   manova(cbind(alpha_win_vba_mfx, alpha_loss_vba_mfx, decay_vba_mfx, beta_vba_mfx) ~ Group, data = beh_sub_df)
+# summary(rpm1)
+# anova(rpm1)
+# 
+# rpm2 <- lm(alpha_win_vba_mfx ~ Group, data = beh_sub_df)
+# summary(rpm2)
+# anova(rpm2)
+# 
+# rpm3 <- lm(alpha_loss_vba_mfx ~ Group, data = beh_sub_df)
+# summary(rpm3)
+# anova(rpm3)
+# 
+# rpm4 <- lm(decay_vba_mfx ~ Group, data = beh_sub_df)
+# summary(rpm4)
+# anova(rpm4) #.
+# ggplot(data = beh_sub_df, aes(y = decay_vba_mfx, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+# 
+# rpm5 <- lm(beta_vba_mfx ~ Group, data = beh_sub_df)
+# summary(rpm5)
+# anova(rpm5)
+# ggplot(data = beh_sub_df, aes(y = beta, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+# ls_rpm5 <- lsmeans::lsmeans(rpm5, "Group")
+# cld(ls_rpm5)
+# 
+# rpm6 <- lm(L_vba_mfx ~ Group, data = beh_sub_df)
+# summary(rpm6)
+# anova(rpm6)
+# ggplot(data = beh_sub_df, aes(y = L, x = Group, color = Group)) + geom_boxplot() + geom_jitter()
+# ls_rpm6 <- lsmeans::lsmeans(rpm6, "Group")
+# cld(ls_rpm6)
 
 
 
@@ -755,6 +994,7 @@ rdf$trial_scaled <- scale(rdf$Trial)
 # get lags and leads
 rdf = rdf %>% group_by(ID) %>%
   mutate(
+    RT_lag = lag(RT),
     reinf_lag = lag(reinf),
     value_A_lag = lag(value_A_stim),
     value_B_lag = lag(value_B_stim),
@@ -770,8 +1010,8 @@ rdf = rdf %>% group_by(ID) %>%
     v_max_lag = lag(value_max),
     v_max_lag_mfx = lag(value_max_vba_mfx),
     v_max_lag2_mfx = lag(value_max_vba_mfx,2),
-    
-    v_chosen_lag_mfx  = lag(value_chosen_vba_mfx),
+    PE_chosen_vba_lag = lag(PE_chosen_vba_mfx),
+        v_chosen_lag_mfx  = lag(value_chosen_vba_mfx),
     h_lag = lag(H),
     h_lag_mfx = lag(H_vba_mfx)
   ) %>% ungroup()
@@ -816,6 +1056,7 @@ rdf$v_chosen_lag_mfx_mc <-  scale(rdf$v_chosen_lag_mfx)
 rdf$h_lag_mfx_mc <- scale(rdf$h_lag_mfx)
 rdf$h_mc <- scale(rdf$H)
 rdf$h_mfx_mc <- scale(rdf$H_vba_mfx)
+rdf$v_ch_diff <- rdf$v_chosen_lag_mfx - rdf$v_max_lag_mfx
 
 
 # make sure lags are correctly aligned
@@ -824,7 +1065,7 @@ View(lag_test)
 
 
 rdf$Group <-
-  recode(
+  dplyr::recode(
     rdf$Group1245,
     `1` = "Controls",
     `2` = "Depressed",
@@ -835,7 +1076,7 @@ contrasts(rdf$Group) <-
   contr.treatment(levels(rdf$Group),
                   base = which(levels(rdf$Group) == 'Attempters'))
 rdf$GroupLeth <-
-  recode(
+  dplyr::recode(
     rdf$Group12467,
     `1` = "Controls",
     `2` = "Depressed",
@@ -846,6 +1087,17 @@ rdf$GroupLeth <-
 contrasts(rdf$GroupLeth) <-
   contr.treatment(levels(rdf$GroupLeth),
                   base = which(levels(rdf$GroupLeth) == 'HL Attempters'))
+
+# replicate RT model
+rrt_g1 <- lmerTest::lmer(log(RT)  ~ log(RT_lag) +
+                          reinf_lag*Group + stay_lag*Group + 
+                          trial_scaled + v_max_lag_mfx*Group + abs(PE_chosen_vba_lag)*Group + 
+                          (1 | ID),
+                        data = rdf[rdf$RT>0 & rdf$RT<6000,])
+summary(rrt_g1)
+car::Anova(rrt_g1)
+plot(allEffects(rrt_g1))
+
 
 # replicate value + H + last reward analyses from fMRI sample
 
@@ -882,8 +1134,23 @@ r_m_old <-   glmer(
 summary(r_m_old)
 car::Anova(r_m_old)
 
-ls <- lsmeans(r_m_old,"value_chosen_vba_mfx", by = c("Group","h_mfx_mc"), at = list(value_chosen_vba_mfx = c(0.1,0.9), h_mfx_mc = c(-1,1)))
+ls <- lsmeans::lsmeans(r_m_old,"value_chosen_vba_mfx", by = c("Group","h_mfx_mc"), at = list(value_chosen_vba_mfx = c(0.1,0.9), h_mfx_mc = c(-1,1)))
 plot(ls, horiz = F)
+
+####################################
+# Main behavior model replication
+# Michael's suggestion: predict choice value
+# current favorite as of 1/11/17
+r_vm1 <- lmer(
+  value_chosen_vba_mfx ~ reinf * stay_lag * Group + reinf_lag * Group +
+    trial_scaled + 
+    (1 | ID),
+  data = rdf)
+summary(r_vm1)
+car::Anova(r_vm1)
+plot(allEffects(r_vm1))
+lsm <- lsmeans::lsmeans(r_vm1,"reinf", by = c("Group"))
+plot(lsm, horiz = F)
 
 
 r_vm1 <- lmer(
@@ -920,9 +1187,9 @@ r_bm1 <-  glmer(
 summary(r_bm1)
 car::Anova(r_bm1)
 plot(allEffects(bm1))
-lsm <- lsmeans(r_bm1, "stay", by = "Group")
+lsm <- lsmeans::lsmeans(r_bm1, "stay", by = "Group")
 plot(lsm, horiz = F)
-lsm <- lsmeans(r_bm1, "reinf", by = "Group")
+lsm <- lsmeans::lsmeans(r_bm1, "reinf", by = "Group")
 plot(lsm, horiz = F)
 
 r_bmhv1 <-  glmer(
@@ -936,11 +1203,11 @@ r_bmhv1 <-  glmer(
   nAGQ = 0)
 summary(r_bmhv1)
 car::Anova(r_bmhv1)
-lsm <- lsmeans(r_bmhv1, "reinf", by = "Group")
+lsm <- lsmeans::lsmeans(r_bmhv1, "reinf", by = "Group")
 plot(lsm, horiz = F)
-lsm <- lsmeans(r_bmhv1, "v_max_lag_mfx", by = "Group", at = list(v_max_lag_mfx = c(0.1,0.9)))
+lsm <- lsmeans::lsmeans(r_bmhv1, "v_max_lag_mfx", by = "Group", at = list(v_max_lag_mfx = c(0.1,0.9)))
 plot(lsm, horiz = F)
-lsm <- lsmeans(r_bmhv1, "h_mfx_mc", by = "Group", at = list(h_mfx_mc = c(-2,2)))
+lsm <- lsmeans::lsmeans(r_bmhv1, "h_mfx_mc", by = "Group", at = list(h_mfx_mc = c(-2,2)))
 plot(lsm, horiz = F)
 
 
@@ -949,7 +1216,7 @@ plot(lsm, horiz = F)
 
 library(lsmeans)
 ls_rvm2 <-
-  lsmeans(rvm2,
+  lsmeans::lsmeans(rvm2,
           "v_chosen_lag",
           by = "Group",
           at = list(v_chosen_lag = c(0.01, 0.99)))
@@ -958,7 +1225,7 @@ plot(ls_rvm2,
      horiz = F,
      ylab = "logit(probability of staying)",
      xlab = "Value")
-leastsquare = lsmeans(
+leastsquare = lsmeans::lsmeans(
   rvm2,
   at = list(v_chosen_lag = c(0.01, 0.99)),
   pairwise ~ v_chosen_lag:Group,
@@ -1039,7 +1306,7 @@ lrvm2 <-
 summary(lrvm2)
 car::Anova(lrvm2)
 ls_lrvm2 <-
-  lsmeans(lrvm2,
+  lsmeans::lsmeans(lrvm2,
           "v_chosen_lag",
           by = "Group12467",
           at = list(v_chosen_lag = c(0.01, 0.50, 0.99)))
@@ -1049,7 +1316,7 @@ plot(ls_lrvm2,
      ylab = "logit(probability of staying)",
      xlab = "Value")
 
-leastsquare = lsmeans(
+leastsquare = lsmeans::lsmeans(
   lrvm2,
   at = list(v_chosen_lag = c(0.01, 0.99)),
   pairwise ~ v_chosen_lag:GroupLeth,
