@@ -7,12 +7,12 @@ require(lme4)
 require(corrplot)
 
 ## for original sample
-# df <- bdf
-# replic <- "fMRI"
+df <- bdf
+replic <- "fMRI"
 # 
 # ## for replication
-df <- rdf
-replic <- "replication_"
+# df <- rdf
+# replic <- "replication_"
 
 
 #  with predictor
