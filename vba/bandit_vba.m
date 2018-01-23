@@ -39,7 +39,7 @@ me = strtrim(me);
 if save_results
     file_path = 'vba_output';
 else
-    error('something went wrong with the vba output dir!')
+    fprintf('You are not saving the data!\n\n')
 end
 
 %Evolution options

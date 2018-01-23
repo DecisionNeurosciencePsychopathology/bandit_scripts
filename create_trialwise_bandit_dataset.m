@@ -53,11 +53,11 @@ merge_first_150 = 1;
 merge_vba_mfx = 1;
 if merge_vba_mfx
     if strcmpi(dataset_to_compile,'fMRI')
-        mfx_data = load([file_strings.vba_output_mfx 'df_vars.mat'],'vba_mfx_df'); %vba_mfx_df
+        mfx_data = load([file_strings.vba_output_mfx 'fmri_vba_mfx_vars_n_128.mat'],'vba_mfx_df'); %vba_mfx_df
         mfx_data = mfx_data.('vba_mfx_df');
     elseif strcmpi(dataset_to_compile,'behav')
-        mfx_data = load('E:\data\bandit\vba_mfx\behavioral_vba_mfx_df.mat','vba_mfx_behav_df');
-        mfx_data = mfx_data.('vba_mfx_behav_df');
+        mfx_data = load('E:\data\bandit\vba_mfx\behav_vba_mfx_vars_n286.mat','vba_mfx_df');
+        mfx_data = mfx_data.('vba_mfx_df');
     end
 end
 
@@ -214,15 +214,21 @@ for i = 1:length(ball.id)
             out_vba_L_first_150 = [out_vba_L_first_150; [ball.id(i) out.F]];
             
             %Grab value chosen
-            df1_tmp.value_chosen_first_150 = [out.suffStat.value_chosen'; nan(150, 1)];
+            df1_tmp.value_chosen_first_150 = shiftMe([out.suffStat.value_chosen'; nan(150, 1)]')';
+            df1_tmp.value_chosen_first_150(end) = nan;
             
+            %Stim values are not shifted though
             df1_tmp.value_A_stim_first_150 = [posterior.muX(1,:)'; nan(150, 1)]; %value of A choice
             df1_tmp.value_B_stim_first_150 = [posterior.muX(2,:)'; nan(150, 1)]; %value of B choice
             df1_tmp.value_C_stim_first_150 = [posterior.muX(3,:)'; nan(150, 1)]; %value of C choice
+            
+            %PE
+            df1_tmp.PE_chosen_first_150 = shiftMe([posterior.muX(4,:)'; nan(150, 1)]')';
+            df1_tmp.PE_chosen_first_150(end) = nan;
         end
         
         %TODO:
-        %MAke this a function which takes posterior and out as arguments
+        %Make this a function which takes posterior and out as arguments
         %and maybe a string of output variables for naming
         if merge_vba_mfx
             vba_idx = ismember(mfx_data.ID,ball.id(i));
@@ -327,7 +333,7 @@ vba_vanilla_param_table = merge_parameters(vba_vanilla_param_table,lookup_table)
 
 
 %compile_vba_parameters and join to df2
-load('C:\kod\fMRI\vba\fMRI_param_estimates.mat')
+%load('C:\kod\fMRI\vba\fMRI_param_estimates.mat')
 % % % df2=join(df2,fMRI_parameter_estimates,'Keys','ID');
 df2=join(df2,vba_vanilla_param_table,'Keys','ID');
 
@@ -388,11 +394,13 @@ if merge_vba_mfx
     df2=join(df2,mfx_data,'Keys','ID');
     
     %Transform them -- this could be a funciton as well
-    df2.alpha_win_vba_mfx_transformed = 1./(1+exp(-df2.alpha_win_vba_mfx)); % learning rate is bounded between 0 and 1.
-    df2.alpha_loss_vba_mfx_transformed = 1./(1+exp(-df2.alpha_loss_vba_mfx)); % learning rate is bounded between 0 and 1.
-    df2.decay_vba_mfx_transformed = 1./(1+exp(-df2.decay_vba_mfx)); % decay is bounded between 0 and 1.
-    df2.beta_vba_mfx_transformed = exp(df2.beta_vba_mfx);
+    df2.alpha_win_vba_mfx_transformed = 1./(1+exp(-df2.alpha_win_mfx_data)); % learning rate is bounded between 0 and 1.
+    df2.alpha_loss_vba_mfx_transformed = 1./(1+exp(-df2.alpha_loss_mfx_data)); % learning rate is bounded between 0 and 1.
+    df2.decay_vba_mfx_transformed = 1./(1+exp(-df2.decay_mfx_data)); % decay is bounded between 0 and 1.
+    df2.beta_vba_mfx_transformed = exp(df2.beta_mfx_data);
 end
+
+
 
 %% Write the tables to csvs
 if exist(file_strings.save_path,'dir')
@@ -537,6 +545,9 @@ df.(['best_value_option' suffix]) = max_idx';
 %Entropy
 H = calc_entropy(out);
 df.(['H' suffix]) = H';
+
+%Prediction error
+df.(['PE_chosen' suffix]) = shiftMe(out.suffStat.muX(4,:))'; %delta
 
 %Log model evidence
 L = out.F;

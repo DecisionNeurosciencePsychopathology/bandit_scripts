@@ -7,7 +7,7 @@ design_struct=  bandit_fmri_load_design;
 for i = 1:length(idNumbers)
     try
         b = bandit_vba_read_in_data( 'id',idNumbers(i),'data_dir','subjects');
-        save(sprintf('E:/data/bandit/bandit_behav_data/%d.mat',idNumbers(i)),'b');
+        save(sprintf('E:/data/bandit/bandit_scan_data/%d.mat',idNumbers(i)),'b');
     catch
         warning('subproc probably failed...continuing')
         continue
