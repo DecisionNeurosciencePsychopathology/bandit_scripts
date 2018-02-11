@@ -1064,6 +1064,221 @@ car::Anova(rrt_g1l)
 lsm <- lsmeans::lsmeans(rt_g1,"GroupLeth", by = c("v_max_lag_mfx"), at = list(v_max_lag_mfx = c(0,1)))
 plot(lsm, horiz = F)
 
+# all the same for first administration in scanner subjects
+
+sdf$Group1245 <- as.factor(sdf$group1245)
+sdf$Group12467 <- as.factor(sdf$group12467)
+sdf$reinf <- as.factor(sdf$correct_incorrect)
+sdf$choice_numeric <- as.factor(sdf$choice_numeric)
+sdf$choice_numeric[sdf$choice_numeric == 0] <- NA
+sdf$age_scaled <- scale(sdf$age)[, 1]
+# get_lags
+sdf = sdf %>% as_tibble %>% arrange(ID, Trial)
+sdf$trial_scaled <- scale(sdf$Trial)
+# calculate value of chosen stimulus following the update at t
+# get lags and leads
+sdf = sdf %>% group_by(ID) %>%
+  mutate(
+    RT_lag = lag(RT),
+    reinf_lag = lag(reinf),
+    value_A_lag = lag(value_A_stim),
+    value_B_lag = lag(value_B_stim),
+    value_C_lag = lag(value_C_stim),
+    value_A_lead = lead(value_A_stim),
+    value_B_lead = lead(value_B_stim),
+    value_C_lead = lead(value_C_stim),
+    choice_lag = lag(multinomial_choice),
+    choice_num_lag = lag(choice_numeric),
+    choice_num_lead = lead(choice_numeric),
+    v_chosen_lag = lag(value_chosen),
+    v_max_lag = lag(value_max),
+    v_max_lag = lag(value_max),
+    v_max_lag_mfx = lag(value_max_vba_mfx),
+    v_max_lag2_mfx = lag(value_max_vba_mfx,2),
+    PE_chosen_vba_lag = lag(PE_chosen_vba_mfx),
+    v_chosen_lag_mfx  = lag(value_chosen_vba_mfx),
+    h_lag = lag(H),
+    h_lag_mfx = lag(H_vba_mfx)
+  ) %>% ungroup()
+sdf$stay <- sdf$choice_numeric == sdf$choice_num_lead
+sdf = sdf %>% group_by(ID) %>%
+  mutate(stay_lag = lag(stay)) %>% ungroup()
+sdf$stay <- as.factor(sdf$stay)
+sdf$stay_lag <- as.factor(sdf$stay_lag)
+
+sdf$stay_p <- NA
+sdf$stay_p[sdf$stay] <- 1
+sdf$stay_p[!sdf$stay] <- 0
+sdf$past_rew <-
+  recode(sdf$reinf_lag, `0` = "After omission", `1` = "After reward")
+sdf$reinf_n <- as.numeric(sdf$correct_incorrect)
+
+sdf$correct_incorrect <- as.factor(sdf$correct_incorrect)
+
+
+
+sdf$choiceA <- NA
+sdf$choiceB <- NA
+sdf$choiceC <- NA
+sdf$choiceA[sdf$multinomial_choice == "A"] <- 1
+sdf$choiceB[sdf$multinomial_choice == "B"] <- 1
+sdf$choiceC[sdf$multinomial_choice == "C"] <- 1
+sdf$choiceA[sdf$multinomial_choice != "A"] <- 0
+sdf$choiceB[sdf$multinomial_choice != "B"] <- 0
+sdf$choiceC[sdf$multinomial_choice != "C"] <- 0
+
+
+# value of chosen stimulus incorporating subsequent reward, v(a[t]) after r(t)
+sdf$v_chosen_lag_updated <- NA
+sdf$v_chosen_lag_updated[which(sdf$choice_numeric==1)] <- sdf$value_A_lead[which(sdf$choice_numeric==1)]
+sdf$v_chosen_lag_updated[which(sdf$choice_numeric==2)] <- sdf$value_B_lead[which(sdf$choice_numeric==2)]
+sdf$v_chosen_lag_updated[which(sdf$choice_numeric==3)] <- sdf$value_C_lead[which(sdf$choice_numeric==3)]
+
+sdf$v_chosen_lag_mc <- scale(sdf$v_chosen_lag)
+sdf$h_lag_mc <- scale(sdf$h_lag)
+
+sdf$v_chosen_lag_mfx_mc <-  scale(sdf$v_chosen_lag_mfx)
+sdf$h_lag_mfx_mc <- scale(sdf$h_lag_mfx)
+sdf$h_mc <- scale(sdf$H)
+sdf$h_mfx_mc <- scale(sdf$H_vba_mfx)
+sdf$v_ch_diff <- sdf$v_chosen_lag_mfx - sdf$v_max_lag_mfx
+
+
+# make sure lags are correctly aligned
+lag_test <- sdf[,c(1:3,6:13,122:dim(sdf)[2])]
+View(lag_test)
+
+
+sdf$Group <-
+  dplyr::recode(
+    sdf$Group1245,
+    `1` = "Controls",
+    `2` = "Depressed",
+    `4` = "Ideators",
+    `5` = "Attempters"
+  )
+contrasts(sdf$Group) <-
+  contr.treatment(levels(sdf$Group),
+                  base = which(levels(sdf$Group) == 'Attempters'))
+sdf$GroupLeth <-
+  dplyr::recode(
+    sdf$Group12467,
+    `1` = "Controls",
+    `2` = "Depressed",
+    `4` = "Ideators",
+    `6` = "LL Attempters",
+    `7` = "HL Attempters"
+  )
+contrasts(sdf$GroupLeth) <-
+  contr.treatment(levels(sdf$GroupLeth),
+                  base = which(levels(sdf$GroupLeth) == 'HL Attempters'))
+
+# replicate basic reinforcement effects -- all are the same except the value * previous stay interaction
+sr_sm3g <-   glmer(
+  stay ~ trial_scaled + v_max_lag_mfx * stay_lag *Group  + v_ch_diff * stay_lag * Group  + reinf * stay_lag  + reinf * Group  +
+    (stay_lag + trial_scaled | ID),
+  family = binomial(),
+  data = sdf,
+  nAGQ = 0)
+summary(sr_sm3g)
+car::Anova(sr_sm3g)
+# the impact of value is greater after switches than after stays
+lsm <- lsmeans::lsmeans(sr_sm3, "v_chosen_lag_mfx_mc",by = "stay_lag", at = list(v_chosen_lag_mfx_mc = c(0,1)))
+plot(lsm, horiz = F)
+# but the impact of current reward is bigger after stays than after switches
+lsm <- lsmeans::lsmeans(sr_sm3, "reinf",by = "stay_lag")
+plot(lsm, horiz = F)
+
+# findings are a bit different from the fMRI sample, but one has to keep in mind the differences in task difficulty and cognitive level
+sr_sm4g <-   glmer(
+  stay ~ trial_scaled + v_chosen_lag_mfx * stay_lag *Group  + reinf * stay_lag  + reinf * Group  +
+    (stay_lag + trial_scaled | ID),
+  family = binomial(),
+  data = sdf,
+  nAGQ = 0)
+summary(sr_sm4g)
+car::Anova(sr_sm4g)
+lsm <- lsmeans::lsmeans(sr_sm4g, "reinf",by = "Group")
+plot(lsm, horiz = F)
+CLD <- cld(lsm)
+stargazer(sr_sm4g, type="html", out="sr_sm4g.htm", digits = 2,single.row=TRUE, star.cutoffs = c(0.05, 0.01, 0.001))
+
+# by lethality -- still need group on one participant
+sr_sm4gl <-   glmer(
+  stay ~ trial_scaled + v_chosen_lag_mfx * stay_lag *GroupLeth  + reinf * stay_lag  + reinf * GroupLeth  +
+    (stay_lag + trial_scaled | ID),
+  family = binomial(),
+  data = sdf[sdf$Group12467!=5,],
+  nAGQ = 0)
+summary(sr_sm4gl)
+car::Anova(sr_sm4gl)
+lsm <- lsmeans::lsmeans(sr_sm4gl, "reinf",by = "GroupLeth")
+plot(lsm, horiz = F)
+
+
+
+# replicate RT model: age removed for now
+srrt_g1 <- lmerTest::lmer(log(RT)  ~ log(RT_lag) + 
+                           abs(PE_chosen_vba_lag) +
+                           reinf_lag*Group + stay_lag*Group + v_ch_diff*Group +
+                           trial_scaled + v_max_lag_mfx*Group + abs(PE_chosen_vba_lag)*Group + 
+                           (1 | ID),
+                         data = sdf[sdf$RT>0 & sdf$RT<6000,])
+summary(srrt_g1)
+car::Anova(srrt_g1)
+
+srrt_g1star <- lme4::lmer(log(RT)  ~ log(RT_lag) + 
+                           abs(PE_chosen_vba_lag) +
+                           reinf_lag*Group + stay_lag*Group + v_ch_diff*Group +
+                           trial_scaled + v_max_lag_mfx*Group + abs(PE_chosen_vba_lag)*Group + 
+                           (1 | ID),
+                         data = sdf[sdf$RT>0 & sdf$RT<6000,])
+stargazer(srrt_g1star, type="html", out="srrt_g1.htm", digits = 2,single.row=TRUE, star.cutoffs = c(0.05, 0.01, 0.001))
+
+
+plot(allEffects(srrt_g1))
+lsm <- lsmeans::lsmeans(srrt_g1,"v_max_lag_mfx", by = c("Group"), at = list(v_max_lag_mfx = c(0,1)))
+plot(lsm, horiz = F)
+
+lsm <- lsmeans::lsmeans(srrt_g1,"reinf_lag", by = "Group")
+plot(lsm, horiz = F)
+
+# remove the interaction with last reinforcement since the horizon was shorter in the more difficult study
+srrt_g2 <- lmerTest::lmer(log(RT)  ~ log(RT_lag) + 
+                           abs(PE_chosen_vba_lag) +
+                           reinf_lag*Group + stay_lag + v_ch_diff*Group*stay_lag +
+                           trial_scaled + v_max_lag_mfx*Group*stay_lag + abs(PE_chosen_vba_lag)*Group + 
+                           (1 | ID),
+                         data = sdf[sdf$RT>0 & sdf$RT<6000,])
+summary(srrt_g2)
+car::Anova(srrt_g2, type = 'III')
+plot(allEffects(srrt_g2))
+
+anova(srrt_g1,srrt_g2)
+# plot 3-way interactions
+lsm <- lsmeans::lsmeans(srrt_g2,"v_max_lag_mfx", by = c("stay_lag", "Group"), at = list(v_max_lag_mfx = c(0,1)))
+plot(lsm, horiz = F)
+# 
+# lsm <- lsmeans::lsmeans(srrt_g1,"age", by = c("v_max_lag_mfx"), at = list(v_max_lag_mfx = c(0,1), age = c(50,80)))
+# plot(lsm, horiz = F)
+# 
+# lsm <- lsmeans::lsmeans(srrt_g1,"age", by = c("PE_chosen_vba_lag"), at = list(PE_chosen_vba_lag = c(-1,0,1), age = c(50,80)))
+# plot(lsm, horiz = F)
+# 
+# lsm <- lsmeans::lsmeans(srrt_g1,"reinf_lag", by = "age", at = list(age = c(50,80)))
+# plot(lsm, horiz = F)
+# 
+
+srrt_g1l <- lmerTest::lmer(log(RT)  ~ log(RT_lag) +
+                            reinf_lag*GroupLeth + stay_lag*GroupLeth + 
+                            trial_scaled + v_max_lag_mfx*GroupLeth + abs(PE_chosen_vba_lag)*GroupLeth + 
+                            (1 | ID),
+                          data = sdf[sdf$RT>0 & sdf$RT<6000 & sdf$Group12467!=5,])
+summary(srrt_g1l)
+car::Anova(srrt_g1l)
+lsm <- lsmeans::lsmeans(rt_g1,"GroupLeth", by = c("v_max_lag_mfx"), at = list(v_max_lag_mfx = c(0,1)))
+plot(lsm, horiz = F)
+
 
 save(list = ls(all.names = TRUE), file = "bandit2.RData")
 # in case this script needs to be extended:
