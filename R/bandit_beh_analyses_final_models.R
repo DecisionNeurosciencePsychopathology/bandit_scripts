@@ -28,14 +28,14 @@ library(VIM)
 library(mice)
 library(multcompView)
 library(stargazer)
-
+library(psych)
 
 trial_df <-
   read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_fMRI_df_with_PE/bandit_df1.csv")
-View(trial_df)
+# View(trial_df)
 sub_df <-
   read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_fMRI_df_with_PE/bandit_df2.csv")
-View(sub_df)
+# View(sub_df)
 sub_df = sub_df %>% as_tibble %>% arrange(ID)
 
 sub_df$group1245 <- as.factor(sub_df$group1245)
@@ -346,74 +346,74 @@ anova(sm3g,sm3gBetaL)
 
 ## TO DO with complete data:
 # control for EXIT and education: they mostly explain group differences
-sm2mfxG_sens <-   glmer(
-  stay ~ reinf * stake_lag*Group + 
-    reinf * stake_lag*exit_scaled + 
-    reinf * stake_lag*education + reinf*h_mfx_mc + 
-    v_chosen_lag_mfx_mc*h_mfx_mc*Group + 
-    v_chosen_lag_mfx_mc*h_mfx_mc*exit_scaled + 
-    v_chosen_lag_mfx_mc*h_mfx_mc*education + 
-    stake + trial_scaled + stay_lag +
-    (1 | ID),
-  family = binomial(),
-  data = gdf,
-  nAGQ = 0)
-summary(sm2mfxG_sens)
-car::Anova(sm2mfxG_sens)
+# sm2mfxG_sens <-   glmer(
+#   stay ~ reinf * stake_lag*Group + 
+#     reinf * stake_lag*exit_scaled + 
+#     reinf * stake_lag*education + reinf*h_mfx_mc + 
+#     v_chosen_lag_mfx_mc*h_mfx_mc*Group + 
+#     v_chosen_lag_mfx_mc*h_mfx_mc*exit_scaled + 
+#     v_chosen_lag_mfx_mc*h_mfx_mc*education + 
+#     stake + trial_scaled + stay_lag +
+#     (1 | ID),
+#   family = binomial(),
+#   data = gdf,
+#   nAGQ = 0)
+# summary(sm2mfxG_sens)
+# car::Anova(sm2mfxG_sens)
 
 bdf$stay_lag <- as.factor(bdf$stay_lag)
 
 ## archival
 #  previous analysis of value of the stimulus about to be chosen:
-m_old <-   glmer(
-  stay ~ reinf * stake_lag + reinf*h_mfx_mc + reinf * Group + value_chosen_vba_mfx*Group*h_mfx_mc + stake + trial_scaled + stay_lag +
-    (1 | ID),
-  family = binomial(),
-  data = bdf,
-  nAGQ = 0)
-summary(m_old)
-car::Anova(m_old)
-ls_m_old <- lsmeans::lsmeans::lsmeans(m_old,"value_chosen_vba_mfx", by = c("Group","h_mfx_mc"), at = list(value_chosen_vba_mfx = c(0.1,0.9), h_mfx_mc = c(-1,1)))
-plot(ls_m_old, horiz = F)
+# m_old <-   glmer(
+#   stay ~ reinf * stake_lag + reinf*h_mfx_mc + reinf * Group + value_chosen_vba_mfx*Group*h_mfx_mc + stake + trial_scaled + stay_lag +
+#     (1 | ID),
+#   family = binomial(),
+#   data = bdf,
+#   nAGQ = 0)
+# summary(m_old)
+# car::Anova(m_old)
+# ls_m_old <- lsmeans::lsmeans::lsmeans(m_old,"value_chosen_vba_mfx", by = c("Group","h_mfx_mc"), at = list(value_chosen_vba_mfx = c(0.1,0.9), h_mfx_mc = c(-1,1)))
+# plot(ls_m_old, horiz = F)
 
 # Michael's suggestion: predict choice value
 # current favorite as of 1/11/17
-vm1 <- lmer(
-  value_chosen_vba_mfx ~ reinf * stay_lag * Group + reinf_lag * Group +
-  stake  + trial_scaled + 
-    (1 | ID),
-  data = gdf)
-summary(vm1)
-car::Anova(vm1)
-plot(allEffects(vm1))
-lsm <- lsmeans::lsmeans(vm1,"reinf", by = c("Group"))
-plot(lsm, horiz = F)
-
-
-# before we get too excited, control for beta and fit
-vm1betaL <- lmer(
-  value_chosen_vba_mfx ~ reinf * stay_lag * Group + reinf_lag * Group +
-    stake  + trial_scaled + 
-    beta_mfx_data + L_vba_mfx +
-    (1 | ID),
-  data = gdf)
-summary(vm1betaL)
-car::Anova(vm1betaL)
-
-# account for previously chosen value or vmax: this model is getting too complicated too quickly
-vm2 <- lmer(
-  value_chosen_vba_mfx ~ 
-    reinf * stay_lag * Group + reinf_lag * Group +
-    stake  + trial_scaled + 
-    v_max_lag_mfx*Group +
-    (1 | ID),
-  data = gdf)
-summary(vm2)
-car::Anova(vm2)
-plot(allEffects(vm2))
-lsm <- lsmeans::lsmeans(vm2,"reinf", by = c("Group"))
-plot(lsm, horiz = F)
-
+# vm1 <- lmer(
+#   value_chosen_vba_mfx ~ reinf * stay_lag * Group + reinf_lag * Group +
+#   stake  + trial_scaled + 
+#     (1 | ID),
+#   data = gdf)
+# summary(vm1)
+# car::Anova(vm1)
+# plot(allEffects(vm1))
+# lsm <- lsmeans::lsmeans(vm1,"reinf", by = c("Group"))
+# plot(lsm, horiz = F)
+# 
+# 
+# # before we get too excited, control for beta and fit
+# vm1betaL <- lmer(
+#   value_chosen_vba_mfx ~ reinf * stay_lag * Group + reinf_lag * Group +
+#     stake  + trial_scaled + 
+#     beta_mfx_data + L_vba_mfx +
+#     (1 | ID),
+#   data = gdf)
+# summary(vm1betaL)
+# car::Anova(vm1betaL)
+# 
+# # account for previously chosen value or vmax: this model is getting too complicated too quickly
+# vm2 <- lmer(
+#   value_chosen_vba_mfx ~ 
+#     reinf * stay_lag * Group + reinf_lag * Group +
+#     stake  + trial_scaled + 
+#     v_max_lag_mfx*Group +
+#     (1 | ID),
+#   data = gdf)
+# summary(vm2)
+# car::Anova(vm2)
+# plot(allEffects(vm2))
+# lsm <- lsmeans::lsmeans(vm2,"reinf", by = c("Group"))
+# plot(lsm, horiz = F)
+# 
 
 
 
@@ -772,6 +772,38 @@ contrasts(beh_sub_df$Group) <-
   contr.treatment(levels(beh_sub_df$Group),
                   base = which(levels(beh_sub_df$Group) == 'Attempters'))
 
+# check missingness
+
+beh_missing_ind_chars = aggr(
+  beh_sub_df[colSums(!is.na(beh_sub_df)) > 0],
+  col = mdc(1:2),
+  numbers = TRUE,
+  sortVars = TRUE,
+  labels = names(sub_df),
+  cex.axis = .7,
+  gap = 3,
+  ylab = c("Proportion of missingness", "Missingness Pattern")
+)
+
+# only subjects who have been scanned
+c9 <-
+  beh_sub_df[is.element(beh_sub_df$ID, repeaters) &
+               !beh_sub_df$bad,]
+chars <- as.data.frame(c9[, c(9:14, 25:40)])
+c10 <-
+  compareGroups(
+    chars,
+    y = c9$group1245,
+    bivar = TRUE,
+    include.miss = FALSE
+  )
+t10 <-
+  createTable(c10,
+              hide.no = 0,
+              digits = 0,
+              show.n = TRUE)
+export2html(t10, "repeaters_beh_t_bandit_beh_by_group.html")
+
 # rpm1 <-
 #   manova(cbind(alpha_win_vba_mfx, alpha_loss_vba_mfx, decay_vba_mfx, beta_vba_mfx) ~ Group, data = beh_sub_df)
 # summary(rpm1)
@@ -808,9 +840,11 @@ contrasts(beh_sub_df$Group) <-
 
 # let's try the unique sample first
 rdf <- merge(beh_trial_df, c4)
-
-
 View(rdf)
+
+# first assessments on repeaters
+sdf <- merge(beh_trial_df, c9)
+View(sdf)
 # summary(rdf)
 # rdf$bad[is.element(rdf$ID,exclude)] <- TRUE
 # rdf$bad[!is.element(rdf$ID,exclude)] <- FALSE
