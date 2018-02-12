@@ -151,7 +151,7 @@ plot(lsm, horiz = F)
 # final model before sensitivity analyses, a little over-engineered but fits well:
 sm3g <-   glmer(
   stay ~ stake + trial_scaled  + reinf * Group  +
-    value_max_vba_mfx * reinf * Group  + v_ch_diff *reinf * Group  +
+    value_max_vba_mfx * reinf * Group  + v_ch_diff * reinf * Group  +
     (1 | ID),
   family = binomial(),
   data = gdf, #InstEval,
@@ -220,8 +220,8 @@ sm3gBeta <-   glmer(
 summary(sm3gBeta)
 car::Anova(sm3gBeta)
 sm3gL <-   glmer(
-  stay ~ stake + trial_scaled + v_max_lag_mfx * stay_lag *Group  + v_ch_diff * stay_lag * Group  + reinf * stay_lag * Group  +
-    v_max_lag_mfx * stay_lag * L_vba_mfx + v_ch_diff * stay_lag * L_vba_mfx + reinf * stay_lag * L_vba_mfx +
+  stay ~ stake + trial_scaled + v_max_lag_mfx * reinf *Group  + v_ch_diff * reinf * Group  +
+    v_max_lag_mfx * reinf * L_vba_mfx + v_ch_diff * reinf * L_vba_mfx +
     (1 | ID),
   family = binomial(),
   data = gdf,
@@ -233,9 +233,9 @@ car::Anova(sm3gL)
 # demo
 
 sm3g_demo <-   glmer(
-  stay ~ stake + trial_scaled + v_max_lag_mfx * stay_lag *Group  + v_ch_diff * stay_lag * Group  + reinf * stay_lag * Group  +
-    v_max_lag_mfx * stay_lag * age_scaled + v_ch_diff * stay_lag * age_scaled + reinf * stay_lag * age_scaled +
-    v_max_lag_mfx * stay_lag * education_scaled + v_ch_diff * stay_lag * education_scaled + reinf * stay_lag * education_scaled +
+  stay ~ stake + trial_scaled + v_max_lag_mfx * reinf *Group  + v_ch_diff * reinf * Group  +
+    v_max_lag_mfx * reinf * age_scaled + v_ch_diff * reinf * age_scaled +
+    v_max_lag_mfx * reinf * education_scaled + v_ch_diff * reinf * education_scaled +
         (1 | ID),
   family = binomial(),
   data = gdf,
