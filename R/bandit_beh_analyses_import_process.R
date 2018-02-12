@@ -1,6 +1,6 @@
 # import, check and prepare for analyses data from two bandit samples
 
-setwd("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_fMRI_df_with_PE/")
+setwd("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/")
 library(readr)
 library(lme4)
 library(lmerTest)
@@ -30,10 +30,11 @@ library(stargazer)
 ###################
 # merge and check
 trial_df <-
-  read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_fMRI_df_with_PE/bandit_df1.csv")
+  read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_fMRI_dfs/bandit_df1.csv")
+
 View(trial_df)
 sub_df <-
-  read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_fMRI_df_with_PE/bandit_df2.csv")
+  read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_fMRI_dfs/bandit_df2.csv")
 View(sub_df)
 sub_df = sub_df %>% as_tibble %>% arrange(ID)
 
@@ -41,7 +42,7 @@ sub_df$group1245 <- as.factor(sub_df$group1245)
 sub_df$group12467 <- as.factor(sub_df$group12467)
 
 # identify subjects who pressed the same button >10 times
-# AD checked on final sample of N=127 01/18/18 
+# AD checked on final sample of N=127 01/18/18
 sub_df$bad <- NA
 sub_df$bad <- sub_df$ID == 206270 | sub_df$ID == 210100
 
@@ -223,6 +224,9 @@ bdf$h_mfx_mc <- scale(bdf$H_vba_mfx)
 bdf$stake_n <- as.numeric(bdf$stake)
 bdf$stake_n_lag <- as.numeric(bdf$stake_lag)
 bdf$reinf_n_lag <- as.numeric(bdf$reinf_lag)
+# added later
+bdf$age_scaled <- scale(bdf$age)[, 1]
+bdf$education_scaled <- scale(bdf$education)[, 1]
 
 # what about the difference between Vmax and Vchosen
 bdf$v_ch_diff <- bdf$v_chosen_lag_mfx - bdf$v_max_lag_mfx
@@ -241,8 +245,9 @@ gdf <- bdf[!bdf$bad,]
 # stay -- a(t)==a(t+1), repetition of a(t) at t+1
 # correct_incorrect, reinf -- r(t), credited to a(t)
 # value_A_stim, value_B_stim, value_C_stim -- v(t) prior to a(t) and r(t), following r(t-1)
-# value_chosen -- value of the action about to be chosen, v(t+1), following r(t) 
+# value_chosen -- value of the action about to be chosen, v(t+1), following r(t)
 # value_max -- max(v(t+1)), following r(t) and a(t)
+# v_max_lag -- max(v(t)), following r(t-1) and a(t-1)
 # v_chosen_lag -- value of a(t),  v(t)
 # v_chosen_lag_updated -- value of a(t) following r(t), v(a_t,t+1)
 
@@ -251,10 +256,10 @@ gdf <- bdf[!bdf$bad,]
 # read in data form larger behavioral sample
 
 beh_trial_df <-
-  read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_behav_df_with_PE/bandit_df1.csv")
+  read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_behav_dfs/bandit_df1.csv")
 # View(beh_trial_df)
 beh_sub_df <-
-  read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_behav_df_with_PE/bandit_df2.csv")
+  read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_behav_dfs/bandit_df2.csv")
 # View(beh_sub_df)
 
 beh_ids <- unique(beh_sub_df$ID)
@@ -399,6 +404,18 @@ contrasts(beh_sub_df$Group) <-
   contr.treatment(levels(beh_sub_df$Group),
                   base = which(levels(beh_sub_df$Group) == 'Attempters'))
 
+# check missing
+missing_ind_chars = aggr(
+  c4,
+  col = mdc(1:2),
+  numbers = TRUE,
+  sortVars = TRUE,
+  labels = names(c4),
+  cex.axis = .7,
+  gap = 3,
+  ylab = c("Proportion of missingness", "Missingness Pattern")
+)
+
 # let's try the unique sample first
 rdf <- merge(beh_trial_df, c4)
 
@@ -418,6 +435,8 @@ rdf$reinf <- as.factor(rdf$correct_incorrect)
 rdf$choice_numeric <- as.factor(rdf$choice_numeric)
 rdf$choice_numeric[rdf$choice_numeric == 0] <- NA
 rdf$age_scaled <- scale(rdf$age)[, 1]
+rdf$education_scaled <- scale(rdf$education)[, 1]
+
 # get_lags
 rdf = rdf %>% as_tibble %>% arrange(ID, Trial)
 rdf$trial_scaled <- scale(rdf$Trial)
@@ -520,6 +539,149 @@ contrasts(rdf$GroupLeth) <-
                   base = which(levels(rdf$GroupLeth) == 'HL Attempters'))
 
 
+############################
+# only subjects who have been scanned
+c9 <-
+  beh_sub_df[is.element(beh_sub_df$ID, repeaters) &
+               !beh_sub_df$bad,]
+chars <- as.data.frame(c9[, c(9:14, 25:40)])
+c10 <-
+  compareGroups(
+    chars,
+    y = c9$group1245,
+    bivar = TRUE,
+    include.miss = FALSE
+  )
+t10 <-
+  createTable(c10,
+              hide.no = 0,
+              digits = 0,
+              show.n = TRUE)
+export2html(t10, "repeaters_beh_t_bandit_beh_by_group.html")
+
+# check missing
+missing_ind_chars = aggr(
+  c9,
+  col = mdc(1:2),
+  numbers = TRUE,
+  sortVars = TRUE,
+  labels = names(c9),
+  cex.axis = .7,
+  gap = 3,
+  ylab = c("Proportion of missingness", "Missingness Pattern")
+)
+
+
+sdf <- merge(beh_trial_df, c9)
+# all the same for first administration in scanner subjects
+
+sdf$Group1245 <- as.factor(sdf$group1245)
+sdf$Group12467 <- as.factor(sdf$group12467)
+sdf$reinf <- as.factor(sdf$correct_incorrect)
+sdf$choice_numeric <- as.factor(sdf$choice_numeric)
+sdf$choice_numeric[sdf$choice_numeric == 0] <- NA
+sdf$age_scaled <- scale(sdf$age)[, 1]
+sdf$education_scaled <- scale(sdf$education)[, 1]
+
+# get_lags
+sdf = sdf %>% as_tibble %>% arrange(ID, Trial)
+sdf$trial_scaled <- scale(sdf$Trial)
+# calculate value of chosen stimulus following the update at t
+# get lags and leads
+sdf = sdf %>% group_by(ID) %>%
+  mutate(
+    RT_lag = lag(RT),
+    reinf_lag = lag(reinf),
+    value_A_lag = lag(value_A_stim),
+    value_B_lag = lag(value_B_stim),
+    value_C_lag = lag(value_C_stim),
+    value_A_lead = lead(value_A_stim),
+    value_B_lead = lead(value_B_stim),
+    value_C_lead = lead(value_C_stim),
+    choice_lag = lag(multinomial_choice),
+    choice_num_lag = lag(choice_numeric),
+    choice_num_lead = lead(choice_numeric),
+    v_chosen_lag = lag(value_chosen),
+    v_max_lag = lag(value_max),
+    v_max_lag = lag(value_max),
+    v_max_lag_mfx = lag(value_max_vba_mfx),
+    v_max_lag2_mfx = lag(value_max_vba_mfx,2),
+    PE_chosen_vba_lag = lag(PE_chosen_vba_mfx),
+    v_chosen_lag_mfx  = lag(value_chosen_vba_mfx),
+    h_lag = lag(H),
+    h_lag_mfx = lag(H_vba_mfx)
+  ) %>% ungroup()
+sdf$stay <- sdf$choice_numeric == sdf$choice_num_lead
+sdf = sdf %>% group_by(ID) %>%
+  mutate(stay_lag = lag(stay)) %>% ungroup()
+sdf$stay <- as.factor(sdf$stay)
+sdf$stay_lag <- as.factor(sdf$stay_lag)
+
+sdf$stay_p <- NA
+sdf$stay_p[sdf$stay] <- 1
+sdf$stay_p[!sdf$stay] <- 0
+sdf$past_rew <-
+  recode(sdf$reinf_lag, `0` = "After omission", `1` = "After reward")
+sdf$reinf_n <- as.numeric(sdf$correct_incorrect)
+
+sdf$correct_incorrect <- as.factor(sdf$correct_incorrect)
+
+
+
+sdf$choiceA <- NA
+sdf$choiceB <- NA
+sdf$choiceC <- NA
+sdf$choiceA[sdf$multinomial_choice == "A"] <- 1
+sdf$choiceB[sdf$multinomial_choice == "B"] <- 1
+sdf$choiceC[sdf$multinomial_choice == "C"] <- 1
+sdf$choiceA[sdf$multinomial_choice != "A"] <- 0
+sdf$choiceB[sdf$multinomial_choice != "B"] <- 0
+sdf$choiceC[sdf$multinomial_choice != "C"] <- 0
+
+
+# value of chosen stimulus incorporating subsequent reward, v(a[t]) after r(t)
+sdf$v_chosen_lag_updated <- NA
+sdf$v_chosen_lag_updated[which(sdf$choice_numeric==1)] <- sdf$value_A_lead[which(sdf$choice_numeric==1)]
+sdf$v_chosen_lag_updated[which(sdf$choice_numeric==2)] <- sdf$value_B_lead[which(sdf$choice_numeric==2)]
+sdf$v_chosen_lag_updated[which(sdf$choice_numeric==3)] <- sdf$value_C_lead[which(sdf$choice_numeric==3)]
+
+sdf$v_chosen_lag_mc <- scale(sdf$v_chosen_lag)
+sdf$h_lag_mc <- scale(sdf$h_lag)
+
+sdf$v_chosen_lag_mfx_mc <-  scale(sdf$v_chosen_lag_mfx)
+sdf$h_lag_mfx_mc <- scale(sdf$h_lag_mfx)
+sdf$h_mc <- scale(sdf$H)
+sdf$h_mfx_mc <- scale(sdf$H_vba_mfx)
+sdf$v_ch_diff <- sdf$v_chosen_lag_mfx - sdf$v_max_lag_mfx
+
+
+# make sure lags are correctly aligned
+lag_test <- sdf[,c(1:3,6:13,122:dim(sdf)[2])]
+View(lag_test)
+
+
+sdf$Group <-
+  dplyr::recode(
+    sdf$Group1245,
+    `1` = "Controls",
+    `2` = "Depressed",
+    `4` = "Ideators",
+    `5` = "Attempters"
+  )
+contrasts(sdf$Group) <-
+  contr.treatment(levels(sdf$Group),
+                  base = which(levels(sdf$Group) == 'Attempters'))
+sdf$GroupLeth <-
+  dplyr::recode(
+    sdf$Group12467,
+    `1` = "Controls",
+    `2` = "Depressed",
+    `4` = "Ideators",
+    `6` = "LL Attempters",
+    `7` = "HL Attempters"
+  )
+contrasts(sdf$GroupLeth) <-
+  contr.treatment(levels(sdf$GroupLeth),
+                  base = which(levels(sdf$GroupLeth) == 'HL Attempters'))
+
 save(list = ls(all.names = TRUE), file = "bandit1.RData")
-# in case this script needs to be extended:
-# load(file = "~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit2.RData")
