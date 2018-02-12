@@ -16,7 +16,7 @@ library(lsmeans)
 library(compareGroups)
 
 # load preprocessed data from both studies
-load(file = "~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit2.RData")
+load(file = "~/Box Sync/skinner/projects_analyses/Project Bandit/R/bandit1.RData")
 
 # imaging study first
 # rename for clarity and get lags
