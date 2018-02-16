@@ -91,16 +91,6 @@ lsm <- lsmeans(mt,"Group")
 cld(lsm)
 
 # simplest model without RL
-sm0 <- glmer(
-  stay ~  trial_scaled + stake_lag +  stay_lag  * reinf * Group  +  
-    (stay_lag | ID),
-  family = binomial(),
-  data = gdf,
-  glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
-summary(sm0)
-car::Anova(sm0, type = 'III')
-lsm <- lsmeans::lsmeans(sm0, "reinf",by = "Group")
-plot(lsm, horiz = F)
 
 # replicate reinforcement effects
 rsm0 <-   glmer(
@@ -112,17 +102,32 @@ rsm0 <-   glmer(
 summary(rsm0)
 car::Anova(rsm0, type = 'III')
 
-sr_sm0 <-   glmer(
-  stay ~  trial_scaled + stay_lag  * reinf * Group  +  
-    (stay_lag | ID),
-  family = binomial(),
-  data = sdf,
-  glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
-summary(sr_sm0)
-car::Anova(sr_sm0, type = 'III')
+sr_sm0 <- update(rsm0, data = sdf)
+# sr_sm0 <-   glmer(
+#   stay ~  trial_scaled + stay_lag  * reinf * Group  +  
+#     (stay_lag | ID),
+#   family = binomial(),
+#   data = sdf,
+#   glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+# summary(sr_sm0)
+# car::Anova(sr_sm0, type = 'III')
 
-stargazer(sm0, sr_sm0, rsm0, type="html", out="sm0_replication.htm", digits = 2,single.row=TRUE,omit.stat = "bic",
-          column.labels = c("Sample 1 fMRI", "Sample 1 behavioral", "Sample 2 behavioral"),
+sm0 <- update(rsm0, .~. + stake_lag, data = gdf)
+
+# sm0 <- glmer(
+#   stay ~  trial_scaled + stake_lag +  stay_lag  * reinf * Group  +  
+#     (stay_lag | ID),
+#   family = binomial(),
+#   data = gdf,
+#   glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+summary(sm0)
+car::Anova(sm0, type = 'III')
+lsm <- lsmeans::lsmeans(sm0, "reinf",by = "Group")
+plot(lsm, horiz = F)
+
+
+stargazer(rsm0, sr_sm0, sm0, type="html", out="sm0_replication.htm", digits = 2,single.row=TRUE,omit.stat = "bic",
+          column.labels = c("Study 1, sample 1", "Study 1, sample 2", "Study 2, sample 2"),
           star.cutoffs = c(0.05, 0.01, 0.001))
 
 #
