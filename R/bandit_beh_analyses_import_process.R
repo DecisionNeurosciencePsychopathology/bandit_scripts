@@ -41,6 +41,7 @@ sub_df = sub_df %>% as_tibble %>% arrange(ID)
 sub_df$group1245 <- as.factor(sub_df$group1245)
 sub_df$group12467 <- as.factor(sub_df$group12467)
 
+
 # identify subjects who pressed the same button >10 times
 # AD checked on final sample of N=127 01/18/18
 sub_df$bad <- NA
@@ -83,22 +84,22 @@ t1 <-
 export2html(t1, "t_bandit_beh_scan_by_group.html")
 
 # coarse overview of behavior
-hist(sub_df$spont_switch_err, breaks = 50)
-hist(sub_df$prob_switch_err, breaks = 50)
-hist(sub_df$erratic_spont, breaks = 50)
-hist(sub_df$error_NOS)
+# hist(sub_df$spont_switch_err, breaks = 50)
+# hist(sub_df$prob_switch_err, breaks = 50)
+# hist(sub_df$erratic_spont, breaks = 50)
+# hist(sub_df$error_NOS)
 
 
-# summary(m1 <- lm(spont_switch_err ~ group1245 + education + WTAR_SCALED_SCORE + EXITtot, data = sub_df))
+# summary(m1 <- lm(spont_switch_err ~ group1245 + education + WTARSS + EXITtot, data = sub_df))
 # anova(m1)
 # summary(m2 <-
 #           lm(
-#             error_NOS ~ group1245 + education + WTAR_SCALED_SCORE + EXITtot,
+#             error_NOS ~ group1245 + education + WTARSS + EXITtot,
 #             data = sub_df
 #           ))
 # anova(m2)
 # summary(m3 <-
-#           glm.nb(spont_switch_err ~ group1245 +  WTAR_SCALED_SCORE + EXITtot, data = sub_df))
+#           glm.nb(spont_switch_err ~ group1245 +  WTARSS + EXITtot, data = sub_df))
 # car::Anova(m3, type = 'III')
 
 
@@ -132,6 +133,18 @@ sub_df$Group <-
 contrasts(sub_df$Group) <- contr.treatment(levels(sub_df$Group),
                                            base = which(levels(sub_df$Group) == 'Attempters'))
 
+bdf$GroupLeth <-
+  dplyr::recode(
+    bdf$group12467,
+    `1` = "Controls",
+    `2` = "Depressed",
+    `4` = "Ideators",
+    `6` = "LL Attempters",
+    `7` = "HL Attempters"
+  )
+contrasts(bdf$GroupLeth) <-
+  contr.treatment(levels(bdf$GroupLeth),
+                  base = which(levels(bdf$GroupLeth) == 'HL Attempters'))
 
 bdf$stake <- as.factor(bdf$stake)
 bdf$reward <- as.factor(bdf$reward)
@@ -143,7 +156,7 @@ bdf$choice_numeric <- as.factor(bdf$choice_numeric)
 bdf$best_value_option <- as.factor(bdf$best_value_option)
 bdf$choice_numeric[bdf$choice_numeric == 0] <- NA
 bdf$iq_scaled <-
-  scale(bdf$WTAR_SCALED_SCORE, center = TRUE, scale = TRUE)[, 1]
+  scale(bdf$WTARSS, center = TRUE, scale = TRUE)[, 1]
 bdf$exit_scaled <-
   scale(bdf$EXITtot, center = TRUE, scale = TRUE)[, 1]
 bdf$reinf_n <- as.numeric(bdf$correct_incorrect)
@@ -307,11 +320,14 @@ bad_ids <-
 
 beh_sub_df$bad <-
   is.element(beh_sub_df$ID, bad_ids)
-beh_sub_df$AnxietyLifetime <-
-  as.factor(beh_sub_df$AnxietyLifetime)
-beh_sub_df$SubstanceLifetime <-
-  as.factor(beh_sub_df$SubstanceLifetime)
-table(beh_sub_df$Group,beh_sub_df$bad)
+
+##########
+## MISSING ANXIETY, SUBSTANCE!
+# beh_sub_df$AnxietyLifetime <-
+#   as.factor(beh_sub_df$AnxietyLifetime)
+# beh_sub_df$SubstanceLifetime <-
+#   as.factor(beh_sub_df$SubstanceLifetime)
+# table(beh_sub_df$Group,beh_sub_df$bad)
 
 
 # I know that a few controls were erroneously coded for substance/anxiety, correct
@@ -321,7 +337,7 @@ beh_sub_df$SubstanceLifetime[beh_sub_df$group1245 == 1] <-
   NA
 
 # remove missing WTARs
-beh_sub_df$WTAR_SCALED_SCORE[beh_sub_df$WTAR_SCALED_SCORE >
+beh_sub_df$WTARSS[beh_sub_df$WTARSS >
                                200] <- NA
 # select all good behavioral subjects, including scanned, get group characteristics
 c <- beh_sub_df[!beh_sub_df$bad,]
@@ -406,7 +422,7 @@ contrasts(beh_sub_df$Group) <-
 
 # check missing
 missing_ind_chars = aggr(
-  c4,
+  c4[,c(1:4,6:64)],
   col = mdc(1:2),
   numbers = TRUE,
   sortVars = TRUE,
@@ -561,7 +577,7 @@ export2html(t10, "repeaters_beh_t_bandit_beh_by_group.html")
 
 # check missing
 missing_ind_chars = aggr(
-  c9,
+  c9[,c(1:4,6:64)],
   col = mdc(1:2),
   numbers = TRUE,
   sortVars = TRUE,
