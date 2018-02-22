@@ -104,6 +104,7 @@ car::Anova(s11_reinf, type = 'III')
 lsm <- lsmeans::lsmeans(s11_reinf, "reinf",by = "Group")
 plot(lsm, horiz = F)
 
+<<<<<<< HEAD
 s12_reinf <- update(s11_reinf,data = sdf)
 car::Anova(s12_reinf, type = 'III')
 lsm <- lsmeans::lsmeans(s12_reinf, "reinf",by = "Group")
@@ -130,6 +131,33 @@ s11_reinf_leth <-   glmer(
 s12_reinf_leth <- update(s11_reinf_leth,data = sdf)
 s22_reinf_leth <- update(s11_reinf_leth,data = gdf)
 stargazer(s11_reinf_leth, s12_reinf_leth, s22_reinf_leth,  type="html", out="leth_reinf_choice_replication.htm", digits = 3,single.row=TRUE,omit.stat = "bic",
+=======
+sr_sm0 <- update(rsm0, data = sdf)
+# sr_sm0 <-   glmer(
+#   stay ~  trial_scaled + stay_lag  * reinf * Group  +  
+#     (stay_lag | ID),
+#   family = binomial(),
+#   data = sdf,
+#   glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+# summary(sr_sm0)
+# car::Anova(sr_sm0, type = 'III')
+
+sm0 <- update(rsm0, .~. + stake_lag, data = gdf)
+
+# sm0 <- glmer(
+#   stay ~  trial_scaled + stake_lag +  stay_lag  * reinf * Group  +  
+#     (stay_lag | ID),
+#   family = binomial(),
+#   data = gdf,
+#   glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+summary(sm0)
+car::Anova(sm0, type = 'III')
+lsm <- lsmeans::lsmeans(sm0, "reinf",by = "Group")
+plot(lsm, horiz = F)
+
+
+stargazer(rsm0, sr_sm0, sm0, type="html", out="sm0_replication.htm", digits = 2,single.row=TRUE,omit.stat = "bic",
+>>>>>>> origin/master
           column.labels = c("Study 1, sample 1", "Study 1, sample 2", "Study 2, sample 2"),
           star.cutoffs = c(0.05, 0.01, 0.001))
 
