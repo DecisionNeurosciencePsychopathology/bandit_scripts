@@ -63,7 +63,7 @@ missing_ind_chars = aggr(
 # all missingness <8%, could impute
 
 # sample characteristics: looks reasonable
-chars <- as.data.frame(sub_df[!sub_df$bad, c(9:13,2:3,18,43:46)])
+chars <- as.data.frame(sub_df[!sub_df$bad, c(9:14,18:30)])
 c1 <-
   compareGroups(
     chars,
