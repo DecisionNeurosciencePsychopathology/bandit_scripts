@@ -317,12 +317,20 @@ df2.L_vba_mfx = out_vba_L_mfx(:,2);
 
 %% Fill any missing subjects from what Josh sent with nans
 if strcmpi(dataset_to_compile,'fMRI')
-    assesments=readtable('C:\kod\fMRI\from_josh\bandit_10-26-17.xlsx');
+    assesments=readtable('C:/kod/fMRI/R/Bandit_Update_02-17-18_fMRI.xlsx');
 else
-    assesments=readtable('C:\kod\Neuropsych_preproc\matlab\analysis\bandit\11-02-17 JON FINAL.xlsx'); %Does this work for the imaging sample? -- no it doesn't
+    assesments=readtable('C:/kod/Neuropsych_preproc/matlab/analysis/bandit/Bandit_Update_02-17-18_behav.xlsx'); %Does this work for the imaging sample? -- no it doesn't
 end
-%JON UNCOMMENT THIS ONCE YOU GET EVERYONE!
-%df2=join(df2,assesments,'Keys','ID');
+
+df2=join(df2,assesments,'Keys','ID');
+
+%More assesmetns
+if strcmpi(dataset_to_compile,'fMRI')
+    substance_ect = readtable('C:/kod/fMRI/R/BANDIT_DATA_03-02-18.xlsx');
+else
+    substance_ect = readtable('C:/kod/Neuropsych_preproc/matlab/analysis/bandit/R/substance_info.xlsx');
+end
+df2=join(df2,substance_ect,'Keys','ID');
 
 %% Parameters - load in the parameter matrix i.e. output from
 vba_vanilla_param_table=compile_vba_parameters(file_strings.vba_output);
