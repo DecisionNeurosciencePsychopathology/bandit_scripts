@@ -318,9 +318,9 @@ stargazer(s11_wi_v2r, s12_wi_v2r, s22_wi_v2r,  type="html", out="inv_rt_wi.htm",
           notes = c("+ p<0.1; * p<0.05; ** p<0.01; *** p<0.001"), 
           notes.append = F)
 
-vif.lme(s11_rt_wi_v2r)
-vif.lme(s12_rt_wi_v2r)
-vif.lme(s22_rt_wi_v2r)
+vif.lme(s11_wi_v2r)
+vif.lme(s12_wi_v2r)
+vif.lme(s22_wi_v2r)
 
 # 
 # lsm <- lsmeans::lsmeans(s11_wi_v2,"v_max_lag2_mfx_wi", by = c("Group"), at = list(v_max_lag2_mfx_wi = c(-2,2)))

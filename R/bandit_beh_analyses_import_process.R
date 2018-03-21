@@ -108,6 +108,7 @@ t1 <-
     hide.no = 0,
     digits = 1,
     show.n = TRUE
+    ,show.p.mul = TRUE
   )
 export2html(t1, "t_bandit_beh_scan_by_group.html")
 
