@@ -5,20 +5,19 @@ library(readr)
 library(lme4)
 library(lmerTest)
 library(ggplot2)
-library(dplyr)
 library(tidyr)
 library(tibble)
-library(xtable)
+# library(xtable)
 library(Hmisc)
-library(nnet)
+# library(nnet)
 library(reshape2)
-library(ggbiplot)
+# library(ggbiplot)
 library(corrplot)
 library(lsmeans)
-library(factoextra)
-library(ggfortify)
+# library(factoextra)
+# library(ggfortify)
 library(compareGroups)
-library(RColorBrewer)
+# library(RColorBrewer)
 library(MASS)
 library(effects)
 library(readr)
@@ -26,21 +25,47 @@ library(VIM)
 library(mice)
 library(multcompView)
 library(stargazer)
-
+library(dplyr)
+# detach(package:plyr)
 ###################
 # merge and check
 trial_df <-
   read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_fMRI_dfs/bandit_df1.csv")
 
-View(trial_df)
+#View(trial_df)
 sub_df <-
   read_csv("~/Box Sync/skinner/projects_analyses/Project Bandit/R/finalized_samples/bandit_fMRI_dfs/bandit_df2.csv")
-View(sub_df)
+#View(sub_df)
 sub_df = sub_df %>% as_tibble %>% arrange(ID)
+
+# note -- missing lethality on 221298, from Michelle: I’m cc’ing Alex since Jon also asked me about this last week, and I want to double check what I think the lethality rating would be. Pt reports that she was intubated s/p OD at a UPMC hospital, but there are no records; and this is just noted per pt report in her WPIC records. My guess at lethality would be 7, but there is no record verifying this.
+# thus
+sub_df$ID[sub_df$group12467==5]
+sub_df$max_lethality[sub_df$ID==221298] <- 7
+sub_df$group12467[sub_df$ID==221298] <- 7
+
+
+# there were also three subjects concurrently enrolled in bSocial with missing group variable, check below:
+sub_df$ID[sub_df$group12467==0]
+sub_df$max_lethality[sub_df$group12467==0]
+# code them from attempt lethality ratings
+sub_df$group1245[sub_df$group12467==0] <- 5
+sub_df$group12467[sub_df$max_lethality>0 & sub_df$max_lethality<4] <- 6
+sub_df$group12467[sub_df$max_lethality>3] <- 7
+
+
 
 sub_df$group1245 <- as.factor(sub_df$group1245)
 sub_df$group12467 <- as.factor(sub_df$group12467)
 
+sub_df$AnxietyLifetime[sub_df$group1245 == 1] <-
+  NA
+sub_df$SubstanceLifetime[sub_df$group1245 == 1] <-
+  NA
+sub_df$STRENGTH_6MO[sub_df$group1245 == 1] <-
+  NA
+sub_df$max_lethality[sub_df$group1245 < 1] <-
+  NA
 
 # identify subjects who pressed the same button >10 times
 # AD checked on final sample of N=127 01/18/18
@@ -62,8 +87,11 @@ missing_ind_chars = aggr(
 
 # all missingness <8%, could impute
 
+sub_df[,c(7:9,33:40)] <- lapply(sub_df[,c(7:9,33:40)], factor)
+
+
 # sample characteristics: looks reasonable
-chars <- as.data.frame(sub_df[!sub_df$bad, c(9:14,18:30)])
+chars <- as.data.frame(sub_df[!sub_df$bad, c(10:15,20:31,33:40,73:75)])
 c1 <-
   compareGroups(
     chars,
@@ -160,39 +188,73 @@ bdf$iq_scaled <-
 bdf$exit_scaled <-
   scale(bdf$EXITtot, center = TRUE, scale = TRUE)[, 1]
 bdf$reinf_n <- as.numeric(bdf$correct_incorrect)
+bdf$ANTIPSYCHOTICS <- as.factor(bdf$ANTIPSYCHOTICS)
+bdf$SEDATIVES <- as.factor(bdf$SEDATIVES)
+bdf$OPIATES <- as.factor(bdf$OPIATES)
+bdf$no_brain_damage <- !bdf$BRAIN_DAMAGE==2 | is.na(bdf$BRAIN_DAMAGE)
 # add multinom analyses looking at how magnitude of reward influences choice probability (nnet package)
-
+# only the lags necessary for final analyses
 bdf = bdf %>% as_tibble %>% arrange(ID, Trial)
-bdf = bdf %>% group_by(ID) %>%
+bdf = bdf %>% arrange(ID, Trial) %>% group_by(ID) %>% 
   mutate(
-    reinf_lag = lag(reinf),
-    stake_lag = lag(stake),
-    value_A_lag = lag(value_A_stim),
-    value_B_lag = lag(value_B_stim),
-    value_C_lag = lag(value_C_stim),
-    value_A_lead = lead(value_A_stim),
-    value_B_lead = lead(value_B_stim),
-    value_C_lead = lead(value_C_stim),
-    choice_lag = lag(multinomial_choice),
-    choice_num_lag = lag(choice_numeric),
-    choice_num_lead = lead(choice_numeric),
-    v_chosen_lag = lag(value_chosen),
-    v_max_lag = lag(value_max),
-    v_max_lag = lag(value_max),
-    v_max_lag_mfx = lag(value_max_vba_mfx),
-    v_max_lag2_mfx = lag(value_max_vba_mfx,2),
-    PE_chosen_vba_lag = lag(PE_chosen_vba_mfx),
-    v_chosen_lag_mfx  = lag(value_chosen_vba_mfx),
-    h_lag = lag(H),
-    h_lag_mfx = lag(H_vba_mfx),
-    RT_lag = lag(RT)
+    reinf_lag = lag(reinf ),
+    stake_lag = lag(stake ),
+      RT_lag = lag(RT ),
+      reinf_lag = lag(reinf ),
+      choice_lag = lag(multinomial_choice ),
+      choice_num_lag = lag(choice_numeric ),
+      choice_num_lead = lead(choice_numeric ),
+      v_max_lag_mfx = lag(value_max_vba_mfx ),
+      v_max_lag2_mfx = lag(value_max_vba_mfx,n=2 ),
+      PE_chosen_vba_lag = lag(PE_chosen_vba_mfx ),
+      v_chosen_lag_mfx  = lag(value_chosen_vba_mfx ),
+      v_chosen_lag2_mfx  = lag(value_chosen_vba_mfx,n=2 ),
+      h_lag_mfx = lag(H_vba_mfx ),
+    h_lag2_mfx = lag(H_vba_mfx,2 )
+    ) %>% ungroup()
+# since dplyr struggles with multiple grouping variables, manually kill first/second trials for each subject
+
+# bdf$reinf_lag[bdf$Trial<3] <- NA
+# bdf$stake_lag[bdf$Trial<3] <- NA
+# bdf$RT_lag[bdf$Trial<3] <- NA
+# bdf$reinf_lag[bdf$Trial<3] <- NA
+# bdf$choice_lag[bdf$Trial<3] <- NA
+# bdf$choice_num_lag[bdf$Trial<3] <- NA
+# bdf$choice_num_lead[bdf$Trial<3] <- NA
+# bdf$v_max_lag_mfx[bdf$Trial<3] <- NA
+# bdf$v_max_lag2_mfx[bdf$Trial<3] <- NA
+# bdf$PE_chosen_vba_lag[bdf$Trial<3] <- NA
+# bdf$v_chosen_lag_mfx[bdf$Trial<3] <- NA
+# bdf$h_lag_mfx[bdf$Trial<3] <- NA
+# bdf$h_lag2_mfx[bdf$Trial<3] <- NA
+# 
+
+lag_test <- bdf[,c(1:3,121,36,124,125,38,128,129)]
+View(lag_test)
+
+# scale within subject
+scale_this <- function(x) as.vector(scale(x))
+bdf = bdf %>% group_by(ID) %>% 
+  mutate(
+    v_max_lag_mfx_wi = scale_this(v_max_lag_mfx),
+    v_max_b = mean(value_max_vba_mfx, na.rm = TRUE),
+    RT_wi = scale_this(RT),
+    RT_lag_wi = scale_this(RT_lag),
+    v_max_lag2_mfx_wi = scale_this(v_max_lag2_mfx),
+    PE_chosen_vba_lag_wi = scale_this(PE_chosen_vba_lag)
   ) %>% ungroup()
+
+
+# # check within-subject vars
+# summarise(group_by(bdf, ID),mean(v_max_lag_mfx_wi, na.rm = TRUE))
+# summarise(group_by(bdf, ID),mean(v_max_lag_mfx, na.rm = TRUE))
+
 bdf$stay <- bdf$choice_numeric == bdf$choice_num_lead
 bdf$stay_p <- NA
 bdf$stay_p[bdf$stay==TRUE] <- 1
 bdf$stay_p[bdf$stay==FALSE] <- 0
 bdf = bdf %>% group_by(ID) %>%
-  mutate(stay_lag = lag(stay)) %>% ungroup()
+  mutate(stay_lag = lag(stay )) %>% ungroup()
 bdf$stay <- as.factor(bdf$stay)
 bdf$stay_lag <- as.factor(bdf$stay_lag)
 
@@ -200,6 +262,7 @@ bdf$trial_scaled <- scale(bdf$Trial)
 bdf$past_rew <-
   dplyr::recode(bdf$reinf_lag, `0` = "After omission", `1` = "After reward")
 bdf$correct_incorrect <- as.factor(bdf$correct_incorrect)
+bdf$reinf_n_lag <- as.numeric(bdf$reinf_lag)
 
 bdf$choiceA <- NA
 bdf$choiceB <- NA
@@ -226,8 +289,8 @@ bdf$v2 <- apply(values,1,median)
 # value difference for RT analyses
 bdf$vmaxdiff <- bdf$v1 - bdf$v2 - bdf$v3
 
-bdf$v_chosen_lag_mc <- scale(bdf$v_chosen_lag, center = TRUE, scale = TRUE)
-bdf$h_lag_mc <- scale(bdf$h_lag)
+# bdf$v_chosen_lag_mc <- scale(bdf$v_chosen_lag, center = TRUE, scale = TRUE)
+# bdf$h_lag_mc <- scale(bdf$h_lag)
 
 bdf$v_chosen_lag_mfx_mc <-  scale(bdf$v_chosen_lag_mfx)
 bdf$h_lag_mfx_mc <- scale(bdf$h_lag_mfx)
@@ -243,11 +306,14 @@ bdf$education_scaled <- scale(bdf$education)[, 1]
 
 # what about the difference between Vmax and Vchosen
 bdf$v_ch_diff <- bdf$v_chosen_lag_mfx - bdf$v_max_lag_mfx
+bdf$v_ch_diff_lag <- bdf$v_chosen_lag2_mfx - bdf$v_max_lag2_mfx
 
-bdf$v_ch_logr <- log(bdf$v_chosen_lag_mfx_mc/bdf$v_max_lag_mfx)
+# bdf$v_ch_logr <- log(bdf$v_chosen_lag_mfx_mc/bdf$v_max_lag_mfx)
 
 # exclude subjects who pressed one button repeatedly
 gdf <- bdf[!bdf$bad,]
+
+
 
 # end of fMRI sample preprocessing
 
@@ -262,8 +328,7 @@ gdf <- bdf[!bdf$bad,]
 # value_max -- max(v(t+1)), following r(t) and a(t)
 # v_max_lag -- max(v(t)), following r(t-1) and a(t-1)
 # v_chosen_lag -- value of a(t),  v(t)
-# v_chosen_lag_updated -- value of a(t) following r(t), v(a_t,t+1)
-
+# v_ch_diff = v_chosen_lag - v_max_lag, negative values indicate exploration
 ##############################
 ##########
 # read in data form larger behavioral sample
@@ -276,7 +341,7 @@ beh_sub_df <-
 # View(beh_sub_df)
 
 beh_ids <- unique(beh_sub_df$ID)
-# Josh told me that some peopel from BSocial were inadvertently included: exclude them, turns out to be just one person
+# Josh informed me that some peopel from BSocial were inadvertently included: exclude them, turns out to be just one person
 bsocials <-
   as.integer(c(
     219084,
@@ -330,18 +395,37 @@ beh_sub_df$bad <-
 # table(beh_sub_df$Group,beh_sub_df$bad)
 
 
-# I know that a few controls were erroneously coded for substance/anxiety, correct
+# code NAs for substance/anxiety in controls (some were erroneously coded 1, now corrected)
 beh_sub_df$AnxietyLifetime[beh_sub_df$group1245 == 1] <-
   NA
 beh_sub_df$SubstanceLifetime[beh_sub_df$group1245 == 1] <-
   NA
 
+beh_sub_df$STRENGTH_6MO[beh_sub_df$group1245 == 1] <-
+  NA
+beh_sub_df$max_lethality[beh_sub_df$group1245 < 1] <-
+  NA
+
+
+beh_sub_df[,32:39] <- lapply(beh_sub_df[,32:39], factor)
+
 # remove missing WTARs
 beh_sub_df$WTARSS[beh_sub_df$WTARSS >
                                200] <- NA
+beh_sub_df$OPIATES <- as.factor(beh_sub_df$OPIATES)
+
+beh_sub_df$Group <-
+  dplyr::recode(
+    beh_sub_df$group1245,
+    `1` = "Controls",
+    `2` = "Depressed",
+    `4` = "Ideators",
+    `5` = "Attempters"
+  )
+
 # select all good behavioral subjects, including scanned, get group characteristics
 c <- beh_sub_df[!beh_sub_df$bad,]
-chars <- as.data.frame(c[, c(9:14, 25:40)])
+chars <- as.data.frame(c[, c(9:14, 19:39)])
 c2 <-
   compareGroups(
     chars,
@@ -365,7 +449,7 @@ export2html(t2, "beh_t_bandit_beh_by_group.html")
 c2 <-
   beh_sub_df[!is.element(beh_sub_df$ID, repeaters) &
                !beh_sub_df$bad,]
-chars <- as.data.frame(c2[, c(2:3,9:14,18,43:46)])
+chars <- as.data.frame(c2[, c(9:14, 19:39)])
 c3 <-
   compareGroups(
     chars,
@@ -388,15 +472,15 @@ under50 <-
   beh_sub_df$age < 50
 
 
-c4 <-
-  beh_sub_df[!is.element(beh_sub_df$ID, repeaters) &
+c4 <-  beh_sub_df[!is.element(beh_sub_df$ID, repeaters) &
                !beh_sub_df$bad &
                !old_contr_depressed,]
-chars <- as.data.frame(c4[, c(2:3,9:14,18,43:46)])
+chars <- as.data.frame(c4[, c(10:15, 20:30, 33, 35, 37:40, 73,74)])
+c4$Group <- factor(c4$Group, levels = c("Controls", "Depressed", "Ideators", "Attempters"))
 c5 <-
   compareGroups(
     chars,
-    y = c4$group1245,
+    y = c4$Group,
     bivar = TRUE,
     include.miss = FALSE
   )
@@ -404,17 +488,8 @@ t5 <-
   createTable(c5,
               hide.no = 0,
               digits = 1,
-              show.n = TRUE)
+              show.n = TRUE) #, show.p.mul = TRUE)
 export2html(t5, "age_equated_unique_beh_t_bandit_beh_by_group.html")
-
-beh_sub_df$Group <-
-  dplyr::recode(
-    beh_sub_df$group1245,
-    `1` = "Controls",
-    `2` = "Depressed",
-    `4` = "Ideators",
-    `5` = "Attempters"
-  )
 beh_sub_df$Group <- as.factor(beh_sub_df$Group)
 contrasts(beh_sub_df$Group) <-
   contr.treatment(levels(beh_sub_df$Group),
@@ -452,6 +527,10 @@ rdf$choice_numeric <- as.factor(rdf$choice_numeric)
 rdf$choice_numeric[rdf$choice_numeric == 0] <- NA
 rdf$age_scaled <- scale(rdf$age)[, 1]
 rdf$education_scaled <- scale(rdf$education)[, 1]
+rdf$ANTIPSYCHOTICS <- as.factor(rdf$ANTIPSYCHOTICS)
+rdf$SEDATIVES <- as.factor(rdf$SEDATIVES)
+rdf$OPIATES <- as.factor(rdf$OPIATES)
+rdf$no_brain_damage <- !rdf$BRAIN_DAMAGE==2 | is.na(rdf$BRAIN_DAMAGE)
 
 # get_lags
 rdf = rdf %>% as_tibble %>% arrange(ID, Trial)
@@ -460,39 +539,66 @@ rdf$trial_scaled <- scale(rdf$Trial)
 # get lags and leads
 rdf = rdf %>% group_by(ID) %>%
   mutate(
-    RT_lag = lag(RT),
-    reinf_lag = lag(reinf),
-    value_A_lag = lag(value_A_stim),
-    value_B_lag = lag(value_B_stim),
-    value_C_lag = lag(value_C_stim),
-    value_A_lead = lead(value_A_stim),
-    value_B_lead = lead(value_B_stim),
-    value_C_lead = lead(value_C_stim),
-    choice_lag = lag(multinomial_choice),
-    choice_num_lag = lag(choice_numeric),
-    choice_num_lead = lead(choice_numeric),
-    v_chosen_lag = lag(value_chosen),
-    v_max_lag = lag(value_max),
-    v_max_lag = lag(value_max),
-    v_max_lag_mfx = lag(value_max_vba_mfx),
-    v_max_lag2_mfx = lag(value_max_vba_mfx,2),
-    PE_chosen_vba_lag = lag(PE_chosen_vba_mfx),
-        v_chosen_lag_mfx  = lag(value_chosen_vba_mfx),
-    h_lag = lag(H),
-    h_lag_mfx = lag(H_vba_mfx)
+    RT_lag = lag(RT ),
+    reinf_lag = lag(reinf ),
+    # value_A_lag = lag(value_A_stim ),
+    # value_B_lag = lag(value_B_stim ),
+    # value_C_lag = lag(value_C_stim ),
+    # value_A_lead = lead(value_A_stim ),
+    # value_B_lead = lead(value_B_stim ),
+    # value_C_lead = lead(value_C_stim ),
+    choice_lag = lag(multinomial_choice ),
+    choice_num_lag = lag(choice_numeric ),
+    choice_num_lead = lead(choice_numeric ),
+    # v_chosen_lag = lag(value_chosen ),
+    v_max_lag = lag(value_max ),
+    v_max_lag_mfx = lag(value_max_vba_mfx ),
+    v_max_lag2_mfx = lag(value_max_vba_mfx,n=2 ),
+    PE_chosen_vba_lag = lag(PE_chosen_vba_mfx ),
+        v_chosen_lag_mfx  = lag(value_chosen_vba_mfx ),
+    v_chosen_lag2_mfx  = lag(value_chosen_vba_mfx,n=2 ),
+    h_lag_mfx = lag(H_vba_mfx ),
+    h_lag2_mfx = lag(H_vba_mfx,2 )
+      ) %>% ungroup()
+
+
+rdf$reinf_lag[rdf$Trial<3] <- NA
+rdf$stake_lag[rdf$Trial<3] <- NA
+rdf$RT_lag[rdf$Trial<3] <- NA
+rdf$reinf_lag[rdf$Trial<3] <- NA
+rdf$choice_lag[rdf$Trial<3] <- NA
+rdf$choice_num_lag[rdf$Trial<3] <- NA
+rdf$choice_num_lead[rdf$Trial<3] <- NA
+rdf$v_max_lag_mfx[rdf$Trial<3] <- NA
+rdf$v_max_lag2_mfx[rdf$Trial<3] <- NA
+rdf$PE_chosen_vba_lag[rdf$Trial<3] <- NA
+rdf$v_chosen_lag_mfx[rdf$Trial<3] <- NA
+rdf$h_lag_mfx[rdf$Trial<3] <- NA
+rdf$h_lag2_mfx[rdf$Trial<3] <- NA
+
+rdf = rdf %>% group_by(ID) %>% 
+  mutate(
+    v_max_lag_mfx_wi = scale_this(v_max_lag_mfx),
+    v_max_b = mean(value_max_vba_mfx, na.rm = TRUE),
+    RT_wi = scale_this(RT),
+    RT_lag_wi = scale_this(RT_lag),
+    v_max_lag2_mfx_wi = scale_this(v_max_lag2_mfx),
+    PE_chosen_vba_lag_wi = scale_this(PE_chosen_vba_lag)
   ) %>% ungroup()
+
+
 rdf$stay <- rdf$choice_numeric == rdf$choice_num_lead
 rdf = rdf %>% group_by(ID) %>%
-  mutate(stay_lag = lag(stay)) %>% ungroup()
+  mutate(stay_lag = lag(stay )) %>% ungroup()
 rdf$stay <- as.factor(rdf$stay)
 rdf$stay_lag <- as.factor(rdf$stay_lag)
 
 rdf$stay_p <- NA
 rdf$stay_p[rdf$stay] <- 1
 rdf$stay_p[!rdf$stay] <- 0
-rdf$past_rew <-
-  recode(rdf$reinf_lag, `0` = "After omission", `1` = "After reward")
+rdf$past_rew <- dplyr::recode(rdf$reinf_lag, `0` = "After omission", `1` = "After reward")
 rdf$reinf_n <- as.numeric(rdf$correct_incorrect)
+rdf$reinf_n_lag <- as.numeric(rdf$reinf_lag)
 
 rdf$correct_incorrect <- as.factor(rdf$correct_incorrect)
 
@@ -510,24 +616,26 @@ rdf$choiceC[rdf$multinomial_choice != "C"] <- 0
 
 
 # value of chosen stimulus incorporating subsequent reward, v(a[t]) after r(t)
-rdf$v_chosen_lag_updated <- NA
-rdf$v_chosen_lag_updated[which(rdf$choice_numeric==1)] <- rdf$value_A_lead[which(rdf$choice_numeric==1)]
-rdf$v_chosen_lag_updated[which(rdf$choice_numeric==2)] <- rdf$value_B_lead[which(rdf$choice_numeric==2)]
-rdf$v_chosen_lag_updated[which(rdf$choice_numeric==3)] <- rdf$value_C_lead[which(rdf$choice_numeric==3)]
+# rdf$v_chosen_lag_updated <- NA
+# rdf$v_chosen_lag_updated[which(rdf$choice_numeric==1)] <- rdf$value_A_lead[which(rdf$choice_numeric==1)]
+# rdf$v_chosen_lag_updated[which(rdf$choice_numeric==2)] <- rdf$value_B_lead[which(rdf$choice_numeric==2)]
+# rdf$v_chosen_lag_updated[which(rdf$choice_numeric==3)] <- rdf$value_C_lead[which(rdf$choice_numeric==3)]
+# 
+# rdf$v_chosen_lag_mc <- scale(rdf$v_chosen_lag)
+# rdf$h_lag_mc <- scale(rdf$h_lag)
 
-rdf$v_chosen_lag_mc <- scale(rdf$v_chosen_lag)
-rdf$h_lag_mc <- scale(rdf$h_lag)
-
-rdf$v_chosen_lag_mfx_mc <-  scale(rdf$v_chosen_lag_mfx)
+# rdf$v_chosen_lag_mfx_mc <-  scale(rdf$v_chosen_lag_mfx)
 rdf$h_lag_mfx_mc <- scale(rdf$h_lag_mfx)
-rdf$h_mc <- scale(rdf$H)
+# rdf$h_mc <- scale(rdf$H)
 rdf$h_mfx_mc <- scale(rdf$H_vba_mfx)
 rdf$v_ch_diff <- rdf$v_chosen_lag_mfx - rdf$v_max_lag_mfx
+rdf$v_ch_diff_lag <- rdf$v_chosen_lag2_mfx - rdf$v_max_lag2_mfx
+
 
 
 # make sure lags are correctly aligned
-# lag_test <- rdf[,c(1:3,6:13,122:dim(rdf)[2])]
-# View(lag_test)
+lag_test <- rdf[,c(1:3,118,32,122,123,34,126,127)]
+View(lag_test)
 
 
 rdf$Group <-
@@ -598,6 +706,10 @@ sdf$choice_numeric <- as.factor(sdf$choice_numeric)
 sdf$choice_numeric[sdf$choice_numeric == 0] <- NA
 sdf$age_scaled <- scale(sdf$age)[, 1]
 sdf$education_scaled <- scale(sdf$education)[, 1]
+sdf$ANTIPSYCHOTICS <- as.factor(sdf$ANTIPSYCHOTICS)
+sdf$SEDATIVES <- as.factor(sdf$SEDATIVES)
+sdf$OPIATES <- as.factor(sdf$OPIATES)
+sdf$no_brain_damage <- !sdf$BRAIN_DAMAGE==2 | is.na(sdf$BRAIN_DAMAGE)
 
 # get_lags
 sdf = sdf %>% as_tibble %>% arrange(ID, Trial)
@@ -606,30 +718,59 @@ sdf$trial_scaled <- scale(sdf$Trial)
 # get lags and leads
 sdf = sdf %>% group_by(ID) %>%
   mutate(
-    RT_lag = lag(RT),
-    reinf_lag = lag(reinf),
-    value_A_lag = lag(value_A_stim),
-    value_B_lag = lag(value_B_stim),
-    value_C_lag = lag(value_C_stim),
-    value_A_lead = lead(value_A_stim),
-    value_B_lead = lead(value_B_stim),
-    value_C_lead = lead(value_C_stim),
-    choice_lag = lag(multinomial_choice),
-    choice_num_lag = lag(choice_numeric),
-    choice_num_lead = lead(choice_numeric),
-    v_chosen_lag = lag(value_chosen),
-    v_max_lag = lag(value_max),
-    v_max_lag = lag(value_max),
-    v_max_lag_mfx = lag(value_max_vba_mfx),
-    v_max_lag2_mfx = lag(value_max_vba_mfx,2),
-    PE_chosen_vba_lag = lag(PE_chosen_vba_mfx),
-    v_chosen_lag_mfx  = lag(value_chosen_vba_mfx),
-    h_lag = lag(H),
-    h_lag_mfx = lag(H_vba_mfx)
+    RT_lag = lag(RT ),
+    reinf_lag = lag(reinf ),
+    # value_A_lag = lag(value_A_stim ),
+    # value_B_lag = lag(value_B_stim ),
+    # value_C_lag = lag(value_C_stim ),
+    # value_A_lead = lead(value_A_stim ),
+    # value_B_lead = lead(value_B_stim ),
+    # value_C_lead = lead(value_C_stim ),
+    choice_lag = lag(multinomial_choice ),
+    choice_num_lag = lag(choice_numeric ),
+    choice_num_lead = lead(choice_numeric ),
+    # v_chosen_lag = lag(value_chosen ),
+    v_max_lag = lag(value_max ),
+    v_max_lag_mfx = lag(value_max_vba_mfx ),
+    v_max_lag2_mfx = lag(value_max_vba_mfx,n=2 ),
+    PE_chosen_vba_lag = lag(PE_chosen_vba_mfx ),
+    v_chosen_lag_mfx  = lag(value_chosen_vba_mfx ),
+    v_chosen_lag2_mfx  = lag(value_chosen_vba_mfx,n=2 ),
+    h_lag_mfx = lag(H_vba_mfx ),
+    h_lag2_mfx = lag(H_vba_mfx,2 )
+) %>% ungroup()
+
+
+sdf$reinf_lag[sdf$Trial<3] <- NA
+sdf$stake_lag[sdf$Trial<3] <- NA
+sdf$RT_lag[sdf$Trial<3] <- NA
+sdf$reinf_lag[sdf$Trial<3] <- NA
+sdf$choice_lag[sdf$Trial<3] <- NA
+sdf$choice_num_lag[sdf$Trial<3] <- NA
+sdf$choice_num_lead[sdf$Trial<3] <- NA
+sdf$v_max_lag_mfx[sdf$Trial<3] <- NA
+sdf$v_max_lag2_mfx[sdf$Trial<3] <- NA
+sdf$PE_chosen_vba_lag[sdf$Trial<3] <- NA
+sdf$v_chosen_lag_mfx[sdf$Trial<3] <- NA
+sdf$h_lag_mfx[sdf$Trial<3] <- NA
+rdf$h_lag2_mfx[rdf$Trial<3] <- NA
+
+sdf = sdf %>% group_by(ID) %>% 
+  mutate(
+    v_max_lag_mfx_wi = scale_this(v_max_lag_mfx),
+    v_max_b = mean(value_max_vba_mfx, na.rm = TRUE),
+    RT_wi = scale_this(RT),
+    RT_lag_wi = scale_this(RT_lag),
+    v_max_lag2_mfx_wi = scale_this(v_max_lag2_mfx),
+    PE_chosen_vba_lag_wi = scale_this(PE_chosen_vba_lag)
   ) %>% ungroup()
+
+
+
+
 sdf$stay <- sdf$choice_numeric == sdf$choice_num_lead
 sdf = sdf %>% group_by(ID) %>%
-  mutate(stay_lag = lag(stay)) %>% ungroup()
+  mutate(stay_lag = lag(stay )) %>% ungroup()
 sdf$stay <- as.factor(sdf$stay)
 sdf$stay_lag <- as.factor(sdf$stay_lag)
 
@@ -637,8 +778,9 @@ sdf$stay_p <- NA
 sdf$stay_p[sdf$stay] <- 1
 sdf$stay_p[!sdf$stay] <- 0
 sdf$past_rew <-
-  recode(sdf$reinf_lag, `0` = "After omission", `1` = "After reward")
+  dplyr::recode(sdf$reinf_lag, `0` = "After omission", `1` = "After reward")
 sdf$reinf_n <- as.numeric(sdf$correct_incorrect)
+sdf$reinf_n_lag <- as.numeric(sdf$reinf_lag)
 
 sdf$correct_incorrect <- as.factor(sdf$correct_incorrect)
 
@@ -655,24 +797,25 @@ sdf$choiceB[sdf$multinomial_choice != "B"] <- 0
 sdf$choiceC[sdf$multinomial_choice != "C"] <- 0
 
 
-# value of chosen stimulus incorporating subsequent reward, v(a[t]) after r(t)
-sdf$v_chosen_lag_updated <- NA
-sdf$v_chosen_lag_updated[which(sdf$choice_numeric==1)] <- sdf$value_A_lead[which(sdf$choice_numeric==1)]
-sdf$v_chosen_lag_updated[which(sdf$choice_numeric==2)] <- sdf$value_B_lead[which(sdf$choice_numeric==2)]
-sdf$v_chosen_lag_updated[which(sdf$choice_numeric==3)] <- sdf$value_C_lead[which(sdf$choice_numeric==3)]
+# # value of chosen stimulus incorporating subsequent reward, v(a[t]) after r(t)
+# sdf$v_chosen_lag_updated <- NA
+# sdf$v_chosen_lag_updated[which(sdf$choice_numeric==1)] <- sdf$value_A_lead[which(sdf$choice_numeric==1)]
+# sdf$v_chosen_lag_updated[which(sdf$choice_numeric==2)] <- sdf$value_B_lead[which(sdf$choice_numeric==2)]
+# sdf$v_chosen_lag_updated[which(sdf$choice_numeric==3)] <- sdf$value_C_lead[which(sdf$choice_numeric==3)]
 
-sdf$v_chosen_lag_mc <- scale(sdf$v_chosen_lag)
-sdf$h_lag_mc <- scale(sdf$h_lag)
+# sdf$v_chosen_lag_mc <- scale(sdf$v_chosen_lag)
+# sdf$h_lag_mc <- scale(sdf$h_lag)
 
-sdf$v_chosen_lag_mfx_mc <-  scale(sdf$v_chosen_lag_mfx)
+# sdf$v_chosen_lag_mfx_mc <-  scale(sdf$v_chosen_lag_mfx)
 sdf$h_lag_mfx_mc <- scale(sdf$h_lag_mfx)
-sdf$h_mc <- scale(sdf$H)
+# sdf$h_mc <- scale(sdf$H)
 sdf$h_mfx_mc <- scale(sdf$H_vba_mfx)
 sdf$v_ch_diff <- sdf$v_chosen_lag_mfx - sdf$v_max_lag_mfx
+sdf$v_ch_diff_lag <- sdf$v_chosen_lag2_mfx - sdf$v_max_lag2_mfx
 
 
 # make sure lags are correctly aligned
-lag_test <- sdf[,c(1:3,6:13,122:dim(sdf)[2])]
+lag_test <- sdf[,c(1:3,118,32,122,123,34,126,127)]
 View(lag_test)
 
 
@@ -699,5 +842,46 @@ sdf$GroupLeth <-
 contrasts(sdf$GroupLeth) <-
   contr.treatment(levels(sdf$GroupLeth),
                   base = which(levels(sdf$GroupLeth) == 'HL Attempters'))
+
+# check parameter stability for RL models: poor
+params1 <- beh_sub_df[,c(2,19,65:68)]
+params1 = params1 %>% as_tibble %>% arrange(ID)
+
+tmp <- sub_df[,c(2,19,65:68)]
+params2 = list()
+
+params2$ID <- tmp$ID
+params2$L2 <- tmp$L_vba_mfx
+params2$alpha_win2 <- tmp$alpha_win_mfx_data
+params2$alpha_loss2 <- tmp$alpha_loss_mfx_data
+params2$decay2 <- tmp$decay_mfx_data
+params2$beta2 <- tmp$beta_mfx_data
+params2 = params2 %>% as_tibble %>% arrange(ID)
+params <- merge(params1,params2)
+cormat <- psych::corr.test(params[,2:11], method = "spearman")
+pdf("bandit horror plot test retest params.pdf", width=14, height=14)
+
+corrplot(cormat$r, cl.lim=c(-1,1),
+         method = "circle", tl.cex = 1.5, type = "upper", tl.col = 'black',
+         diag = FALSE,
+         addCoef.col="black", addCoefasPercent = FALSE,
+         p.mat = cormat$p, sig.level=0.05, insig = "blank")
+dev.off()
+
+# make merged df of the two behavioral samples
+rdf$sample <- '1'
+sdf$sample <- '2'
+rdf$study <- '1'
+sdf$study <- '1'
+gdf$study <- '2'
+mdf <- rbind(as.data.frame(rdf), as.data.frame(sdf))
+contrasts(mdf$Group) <-
+  contr.treatment(levels(mdf$Group),
+                  base = which(levels(mdf$Group) == 'Attempters'))
+
+
+
+
+
 
 save(list = ls(all.names = TRUE), file = "bandit1.RData")
