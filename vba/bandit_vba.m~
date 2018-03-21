@@ -62,15 +62,10 @@ if ~graphics
     options.GnFigs = 0;
 end
 %% set up dim defaults
-if valence && ~disappointment
+if valence 
     n_theta = 3; %Number of evolution params (AlphaWin AlphaLoss LossDecay WinDecay)
     options.inF.valence = 1;
-    options.inF.disappointment= 0;
-
-elseif valence && disappointment
-    n_theta = 4; %Number of evolution params (AlphaWin AlphaLoss LossDecay WinDecay)
-    options.inF.valence = 1;
-    options.inF.disappointment= 1;
+ifelse
 
 else
     n_theta = 2;
