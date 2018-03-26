@@ -1,4 +1,5 @@
-function             [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization)
+function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization)
+
 
 
 %% fits BANDIT rl model to 3 armed bandit subject data using VBA toolbox
@@ -18,6 +19,8 @@ utility = parameterization.utility;
 disappointment = parameterization.disappointment;
 regret = parameterization.regret;
 fix_all_params = parameterization.fix_all_params ;
+use_reward_vec = parameterization.use_reward_vec;
+
 
 % 
 % if nargin<2
@@ -33,7 +36,7 @@ fix_all_params = parameterization.fix_all_params ;
 
 
 %I think it would be easier just to not make this an argument
-use_reward_vec = 1;
+% use_reward_vec = 1;
 
 %If we only want to use the first 150 trials
 use_first_150 = 0;
@@ -125,8 +128,10 @@ subjects_actions(censor)=nan;
 u(1,:) = subjects_actions; %Chosen action [1 2 3]
 if use_reward_vec
     u(2,:) = b.rewardVec; %Reward has actual value [10 25 50]
+    u(3,:) = b.stakeVec; %Stake 
 else
     u(2,:) = b.stim_ACC; %Reward or not [1 0]
+    u(2,:) = NaN;
 end
 u = [zeros(size(u,1),1) u(:,1:end-1)]; %Shift the u!
 

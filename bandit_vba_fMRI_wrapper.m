@@ -16,14 +16,15 @@ load('fMRI_ids_to_run_vba_on.mat')
 %Set up input arguements
 graphics = 0;
 plot_subject=0;
-save_results=1;
-
+save_results=0;
 parameterization.valence=1;
-parameterization.fix_decay=0; %The logic is fixed
+parameterization.fix_decay=0; %The logic surrounds decay is kind of confusing
 parameterization.utility=0;
+parameterization.fix_all_params=0;
 parameterization.disappointment = 1;
 parameterization.regret = 0;
-parameterization.fix_all_params = 0;
+parameterization.use_reward_vec=1;
+
 for i = 3:length(dirs)
     if dirs(i).bytes <=0 
         try
@@ -34,6 +35,13 @@ for i = 3:length(dirs)
             idNumbers(i) = id;
             %[posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, decay,utility,save_results);
             [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization);
+            
+            %HOT fix for VB new model
+            file_path = 'E:\data\bandit\new_model_vb';
+            file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_new_model',id,use_reward_vec);
+            file_str = [file_path filesep file_name];
+            save(file_str,'posterior', 'out', 'b', 'parameterization')
+
             
         catch exception
             
