@@ -54,6 +54,8 @@ load(file = "bandit1.RData")
 
 params <- as.data.frame(gdf[,c(7,18,43:46)])
 
+# plot choices by subject to look for runs
+# ggplot(bdf,aes(x = Trial, y = choice_numeric, color = choice_numeric)) + geom_point() + facet_wrap((L_vba_mfx<(-400)) ~ID)
 
 
 #################
@@ -110,6 +112,59 @@ stargazer(s11_reinf, s12_reinf, s22_reinf, type="html", out="reinf_choice_replic
           notes = c("+ p<0.1; * p<0.05; ** p<0.01; *** p<0.001"), 
           notes.append = F)
 
+######## make choice figure ###
+
+v1 <- c("Trial", "Previous stay vs. switch", 
+        "Controls vs. attempters", "Depressed vs. attempters", "Ideators vs. attempters", 
+        "Stay * Reward",
+        "Stay * Controls vs attempters", "Stay * Depressed vs attempters", "Stay * Ideators vs attempters",
+        "Reward",
+        "Reward * Controls vs attempters", "Reward * Depressed vs attempters", "Reward * Ideators vs attempters",
+        "Stay * Reward * Controls vs attempters", "Stay * Reward * Depressed vs attempters", "Stay * Reward * Ideators vs attempters")
+model_terms1 <- labels(terms(s11_rt))
+
+s11 <- summary(s11_reinf)
+coef11 <- s11$coefficients
+terms11 <- labels(coef11)[[1]]
+terms11[2:17]
+
+
+p1 <- plot_model(s11_reinf,  p.kr = FALSE, terms = terms11, order.terms = c(16:14,13:11,3,10:4,2:1),
+                 show.p = TRUE, show.values = TRUE,  group.terms = c(rep(1,2), 2, rep(1,7), rep(2,3), rep(1,3)),vline.color = "slategray3",
+                 axis.labels = v1,axis.title = "Switch  < - >  Stay", value.offset = 0.4,colors = c( "gray47", "red3"),
+                 title = "Sample 1, Experiment 1")
+
+p1 <- p1 + theme(axis.text.y = element_text(color = "black"))
+
+p2 <- plot_model(s12_reinf,   p.kr = FALSE, terms = terms11, order.terms = c(16:14,13:11,3,10:4,2:1),
+                 show.p = TRUE, show.values = TRUE,  group.terms = c(rep(1,2), 2, rep(1,7), rep(2,3), rep(1,3)),vline.color = "slategray3",
+                 axis.labels = rep(" ",16),axis.title = "Switch  < - >  Stay", value.offset = 0.4,colors = c( "gray47", "red3"),
+                 title = "Sample 2, Experiment 1")
+
+p3 <- plot_model(s22_reinf,   p.kr = FALSE, terms = terms11, order.terms = c(16:14,13:11,3,10:4,2:1),
+                 show.p = TRUE, show.values = TRUE,  group.terms = c(rep(1,2), 2, rep(1,7), rep(2,3), rep(1,3)),vline.color = "slategray3",
+                 axis.labels = rep(" ",16),axis.title = "Switch  < - >  Stay", value.offset = 0.4,colors = c( "gray47", "red3"),
+                 title = "Sample 2, Experiment 2")
+p3 = p3 + scale_color_manual(name="Experimental\nCondition", values = c( "gray47", "red3", "green4", "navy"),
+                             breaks=c(1,2,3,4),
+                             labels=c("Other variables", "Most recent reward", "Absolute prediction error", "Value")) +
+  guides(color=guide_legend(title="Groups of predictors", reverse = TRUE))
+
+pdf("choice_models_plot3.pdf", width = 12, height = 8)
+ggarrange(p1,p2,p3,nrow = 1, ncol = 3, labels = c("A.","B.", "C."), hjust = c(-2,0.25,0.25), widths = c(4,2.75,4.5))
+dev.off()
+
+# separately plot stake effects
+p4 <- plot_model(s22_reinf,  p.kr = FALSE, terms =  c("stake_lag25", "stake_lag50"),
+                 show.p = TRUE, show.values = TRUE, 
+                 axis.labels = c("50c vs. 10c", "25c vs. 10c"), axis.title = "Switch  < - >  Stay", value.offset = 0.4,vline.color = "slategray3",
+                 title = "Sample 2, Exp. 2 (cont.)",  colors = "gray47")
+p4 <- p4 + theme(axis.text.y = element_text(color = "black"))
+pdf("rt22_choice_stake_plot.pdf", width = 3, height = 2)
+ggarrange(p4, labels = "D.", hjust = -0.5)
+dev.off()
+
+
 
 
 
@@ -128,6 +183,61 @@ stargazer(s11_reinf_leth, s12_reinf_leth, s22_reinf_leth,  type="html", out="let
           star.cutoffs = c(0.1, 0.05, 0.01, 0.001),
           notes = c("+ p<0.1; * p<0.05; ** p<0.01; *** p<0.001"), 
           notes.append = F)
+
+#### make lethality choice figure #####
+
+
+v1 <- c("Trial", "Previous stay vs. switch", 
+        "Controls vs. HL attempters", "Depressed vs. HL attempters", "Ideators vs. HL attempters", "LL vs. HL attempters",
+        "Stay * Reward",
+        "Stay * Controls vs HL attempters", "Stay * Depressed vs HL attempters", "Stay * Ideators vs HL attempters", "Stay * LL vs. HL attempters",
+        "Reward",
+        "Reward * Controls vs HL attempters", "Reward * Depressed vs HL attempters", "Reward * Ideators vs HL attempters", "Reward * LL vs HL attempters",
+        "Stay * Reward * Controls vs HL attempters", "Stay * Reward * Depressed vs HL attempters", "Stay * Reward * Ideators vs HL attempters", "Stay * Reward * LL vs HL attempters")
+
+s11 <- summary(s11_reinf_leth)
+coef11 <- s11$coefficients
+terms11 <- labels(coef11)[[1]]
+terms11[2:21]
+
+
+p1 <- plot_model(s11_reinf_leth,  p.kr = FALSE, terms = terms11, order.terms = c(20:13,3, 12:4,2:1),
+                 show.p = TRUE, show.values = TRUE,  group.terms = c(rep(1,2), 2, rep(1,9), rep(2,4), rep(1,4)),vline.color = "slategray3",
+                 axis.labels = v1,axis.title = "Switch  < - >  Stay", value.offset = 0.4,colors = c( "gray47", "red3"),
+                 title = "Sample 1, Experiment 1")
+
+p1 <- p1 + theme(axis.text.y = element_text(color = "black"))
+
+p2 <- plot_model(s12_reinf_leth,  p.kr = FALSE, terms = terms11, order.terms = c(20:13,3, 12:4,2:1),
+                 show.p = TRUE, show.values = TRUE,  group.terms = c(rep(1,2), 2, rep(1,9), rep(2,4), rep(1,4)),vline.color = "slategray3",
+                 axis.labels = rep(" ",20),axis.title = "Switch  < - >  Stay", value.offset = 0.4,colors = c( "gray47", "red3"),
+                 title = "Sample 2, Experiment 1")
+
+p3 <- plot_model(s22_reinf_leth,  p.kr = FALSE, terms = terms11, order.terms = c(20:13,3, 12:4,2:1),
+                 show.p = TRUE, show.values = TRUE,  group.terms = c(rep(1,2), 2, rep(1,9), rep(2,4), rep(1,4)),vline.color = "slategray3",
+                 axis.labels = rep(" ",16),axis.title = "Switch  < - >  Stay", value.offset = 0.4,colors = c( "gray47", "red3"),
+                 title = "Sample 2, Experiment 2")
+p3 = p3 + scale_color_manual(name="Experimental\nCondition", values = c( "gray47", "red3"),
+                             breaks=c(1,2,3,4),
+                             labels=c("Other variables", "Most recent reward", "Absolute prediction error", "Value")) +
+  guides(color=guide_legend(title="Groups of predictors", reverse = TRUE))
+
+pdf("choice_leth_models_plot3.pdf", width = 12, height = 8)
+ggarrange(p1,p2,p3,nrow = 1, ncol = 3, labels = c("A.","B.", "C."), hjust = c(-2,0.25,0.25), widths = c(4,2.75,4.5))
+dev.off()
+
+# separately plot stake effects
+p4 <- plot_model(s22_reinf,  p.kr = FALSE, terms =  c("stake_lag25", "stake_lag50"),
+                 show.p = TRUE, show.values = TRUE, 
+                 axis.labels = c("50c vs. 10c", "25c vs. 10c"), axis.title = "Switch  < - >  Stay", value.offset = 0.4,vline.color = "slategray3",
+                 title = "Sample 2, Exp. 2 (cont.)",  colors = "gray47")
+p4 <- p4 + theme(axis.text.y = element_text(color = "black"))
+pdf("rt22_choice_stake_plot.pdf", width = 3, height = 2)
+ggarrange(p4, labels = "D.", hjust = -0.5)
+dev.off()
+
+
+
 
 #  do attempters switch away from high-value choices? (exploring win-switches)
 # replicate
@@ -233,3 +343,4 @@ vif.lme(s12_v)
 vif.lme(s22_v)
 
 save(list = ls(all.names = TRUE), file = "bandit2choice.RData")
+load("bandit2choice.RData")

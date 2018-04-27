@@ -616,6 +616,15 @@ rdf$choiceB[rdf$multinomial_choice != "B"] <- 0
 rdf$choiceC[rdf$multinomial_choice != "C"] <- 0
 
 
+rdf$v1 <- NA
+rdf$v2 <- NA
+rdf$v3 <- NA
+values <- cbind(rdf$value_A_stim_vba_mfx,rdf$value_B_stim_vba_mfx,rdf$value_C_stim_vba_mfx)
+rdf$v1 <- apply(values,1,max)
+rdf$v3 <- apply(values,1,min)
+rdf$v2 <- apply(values,1,median)
+
+
 # value of chosen stimulus incorporating subsequent reward, v(a[t]) after r(t)
 # rdf$v_chosen_lag_updated <- NA
 # rdf$v_chosen_lag_updated[which(rdf$choice_numeric==1)] <- rdf$value_A_lead[which(rdf$choice_numeric==1)]
@@ -796,6 +805,15 @@ sdf$choiceC[sdf$multinomial_choice == "C"] <- 1
 sdf$choiceA[sdf$multinomial_choice != "A"] <- 0
 sdf$choiceB[sdf$multinomial_choice != "B"] <- 0
 sdf$choiceC[sdf$multinomial_choice != "C"] <- 0
+
+
+sdf$v1 <- NA
+sdf$v2 <- NA
+sdf$v3 <- NA
+values <- cbind(sdf$value_A_stim_vba_mfx,sdf$value_B_stim_vba_mfx,sdf$value_C_stim_vba_mfx)
+sdf$v1 <- apply(values,1,max)
+sdf$v3 <- apply(values,1,min)
+sdf$v2 <- apply(values,1,median)
 
 
 # # value of chosen stimulus incorporating subsequent reward, v(a[t]) after r(t)
