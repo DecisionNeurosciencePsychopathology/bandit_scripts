@@ -9,7 +9,7 @@ addpath('vba\')
 addpath('behav_scripts\')
 
 %Initialize the tracking data.
-task_data=initialize_task_tracking_data('bandit');
+%task_data=initialize_task_tracking_data('bandit');
 
 %if directories do not exist create them
 if ~exist('regs','dir')
@@ -65,20 +65,28 @@ for i = 3:length(dirs)
             %volumes are fixed, 
 
             %move the regressor files to thorndike
-            newfolder='/Volumes/bek/learn/regs/bandit'; %folder to be place in within thorndike
+            if exist('/Volumes/bek','dir')==7
+                newfolder='/Volumes/bek/learn/regs/bandit'; %folder to be place in within thorndike
+            elseif exist('T:/learn/','dir')==7 %VB filepath
+                newfolder='T:/learn/regs/bandit'; 
+            else
+                print('unfamiliar directory structure')
+            end
             
             %get file paths
             scriptName = mfilename('fullpath');
             [currentpath, filename, fileextension]= fileparts(scriptName);
-            moveregs(currentpath,num2str(id),newfolder);
-            
+            moveregs(currentpath,num2str(id),newfolder); %%%%%NO FILE
+                
+   
             %write the task data to file
-            record_subj_to_file(id,task_data)
+            %record_subj_to_file(id,task_data) %%%%NO FILE
+
             
         catch exception
             
             %write the task data to file
-            record_subj_to_file(id,task_data)
+            %record_subj_to_file(id,task_data) %%%%NO FILE
             
             %Record errors in logger
             errorlog('bandit',b.id,exception)
