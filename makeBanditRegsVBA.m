@@ -24,11 +24,15 @@ end
 %Set up input arguements
 graphics = 0;
 plot_subject=0;
-valence=1;
-fix_decay=0; %The logic surrounds decay is kind of confusing
-utility=0;
-fix_all_params=0;
 save_results=1;
+parameterization.valence=1;
+parameterization.fix_decay=0; %The logic surrounds decay is kind of confusing
+parameterization.utility=0;
+parameterization.fix_all_params=0;
+parameterization.disappointment = 0;
+parameterization.regret = 0;
+parameterization.use_reward_vec=0;
+
 for i = 3:length(dirs)
     
     %Until I think of a more elegent fix
@@ -48,7 +52,8 @@ for i = 3:length(dirs)
             
             %Save all the ids processed
             idNumbers(i) = id;
-            [posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, fix_decay,utility,save_results,fix_all_params);
+            %[posterior,out,b] = bandit_vba(id,graphics,plot_subject,valence, fix_decay,utility,save_results,fix_all_params);
+            [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization);
             
             %Update task_tracking data
             task_data.behave_processed=1;

@@ -251,13 +251,16 @@ function xout = getfmriData(id,vars,procedure,data_dir)
 % Find the eprime file
 %data_dir  = [pathroot 'analysis/bandit/fmri/data/raw/'];
 %data_dir  = 'C:/kod/fMRI/data/raw/'; %for testing purposes
-file_name = ls([data_dir filesep sprintf('%d/*vrbl_scanner*.txt',id)]);
+file_name = ls([data_dir '/' sprintf('%d/*vrbl_scanner*.txt',id)]);
 %fpath     = @(~) [pathroot sprintf('analysis/bandit/fmri/data/raw/%d/%s',id,file_name)];
 fpath     = @(~) [ data_dir filesep sprintf('%d/%s',id,file_name)];
+if     exist(fpath(),'file') 
 
 % read in the data (make sure range to search raw text is correct)
 xout = eprimeread(fpath(),procedure,vars,0,-13,18);
-
+else
+xout = eprimeread(file_name,procedure,vars,0,-13,18);
+end
 return
 
 

@@ -15,6 +15,7 @@ function  [fx] = f_bandit_Qlearn(x,theta,u,in)
 
 %Reward
 r = u(2); % when subjects chooses correctly reward is 1 unless we use the reward vector, which then the input is rew magnitude
+stake = u(3); %stake if use_reward_vec = 1
 
 if in.fixed_params %Fixed paramteres
     theta(1) = 0.176093991469957; %alpha_win
@@ -28,13 +29,19 @@ if in.fix_decay %This is the fixed version
     alpha_win = 1./(1+exp(-theta(1))); % learning rate is bounded between 0 and 1.
     alpha_loss = 1./(1+exp(-theta(2))); % learning rate is bounded between 0 and 1.
     decay=0.5;
-elseif in.valence
+elseif in.valence && ~in.disappointment
     %Params
     alpha_win = 1./(1+exp(-theta(1))); % learning rate is bounded between 0 and 1.
     alpha_loss = 1./(1+exp(-theta(2))); % learning rate is bounded between 0 and 1.
     decay = 1./(1+exp(-theta(3))); % decay is bounded between 0 and 1.
     % loss_decay = 1./(1+exp(-theta(3))); % learning rate is bounded between 0 and 1.
     % win_decay = 1./(1+exp(-theta(4))); % learning rate is bounded between 0 and 1.
+elseif in.valence && in.disappointment
+    %Params
+    alpha_win = 1./(1+exp(-theta(1))); % learning rate is bounded between 0 and 1.
+    alpha_loss = 1./(1+exp(-theta(2))); % learning rate is bounded between 0 and 1.
+    decay = 1./(1+exp(-theta(3))); % decay is bounded between 0 and 1.
+    omega = 1./(1+exp(-theta(4))); % decay is bounded between 0 and 1.
 else
     alpha_win = 1./(1+exp(-theta(1))); % learning rate is bounded between 0 and 1.
     alpha_loss = alpha_win;
@@ -45,6 +52,10 @@ end
 %Make sure r is not binary!
 if in.utility
     r = r^1./(1+exp(-theta(end)));
+end
+
+if in.disappointment
+    r = (1 - omega)*r + omega*(stake - r);
 end
 
 fx = zeros(length(x),1);
