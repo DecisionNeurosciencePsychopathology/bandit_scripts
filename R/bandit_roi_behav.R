@@ -87,3 +87,21 @@ summary(m_v2 <-   lme4::lmer(value_chosen_vba_mfx ~ Group * scale(vmPFC) * reinf
                                (1 | ID),
                      data = roi_gdf))
 vif.lme(m_v2)
+
+## RT analyses (although careful with interpretation -- the value regressor was RT-convolved)
+
+roi_gdf$invRT <- 1000/roi_gdf$RT
+roi_gdf$invRT_lag <- 1000/roi_gdf$RT_lag
+upper <- 4000
+lower <- 200
+
+rtdf <- roi_gdf[roi_gdf$RT>lower & roi_gdf$RT<upper,]
+
+m_rt_roi <- lme4::lmer(scale(invRT) ~ scale(RT_lag) + trial_scaled + stay_lag +
+                       reinf_lag*Group +  
+                       v_max_lag_mfx*Group*scale(vmPFC) + (1 | ID),
+                     data = rtdf)
+
+summary(m_rt_roi)
+car::Anova(m_rt_roi)
+vif.lme(m_rt_roi)
