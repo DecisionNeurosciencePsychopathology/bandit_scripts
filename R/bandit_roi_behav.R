@@ -75,6 +75,7 @@ eff_m_v1=Effect(c('vmPFC','reinf','Group'),m_v1)
 dfeff_m_v1=as.data.frame(eff_m_v1)
 dfeff_m_v1$fitpse=dfeff_m_v1$fit+dfeff_m_v1$se
 dfeff_m_v1$fitmse=dfeff_m_v1$fit-dfeff_m_v1$se
+first_trials=subset(roi_gdf,Trial==1)
 theme_set(theme_bw())
 ggplot(dfeff_m_v1,
        aes(vmPFC,fit,colour=Group,fill=Group,linetype=reinf))+
@@ -82,7 +83,10 @@ ggplot(dfeff_m_v1,
               aes(ymin=fitmse,ymax=fitpse))+
   geom_line()+
   theme(panel.border = element_blank(),panel.grid.minor=element_blank())+
-  labs(x='vmPFC Long-term Value',y='Value of Next Choice',linetype='Reinforcement')
+  labs(x='vmPFC Long-term Value',y='Value of Next Choice',linetype='Reinforcement')+
+  geom_rug(data=first_trials,aes(vmPFC,colour=Group),inherit.aes=F)+xlim(-.03,.1)+
+  theme(axis.title = element_text(size=17), axis.text=element_text(size=12),
+        legend.text=element_text(size=12),legend.title=element_text(size=17))
 #emmeans plot
 em1 <- emmeans(m_v1, "reinf",by = c("Group", "vmPFC"), at = list(vmPFC = c(-.02,0.03,0.08)))
 plot(em1, horiz = F)
@@ -103,7 +107,7 @@ roi_gdf_r1=subset(roi_gdf,reinf==1)
 m_v1r1 <-   lme4::lmer(value_chosen_vba_mfx ~ Group * scale(vmPFC) + 
                          (1 | ID),
                        data = roi_gdf_r1)
-summary(m_v1r1) #different slope than ideators & overall effect of ROI than depresed
+summary(m_v1r1) #different slope than ideators & overall effect of ROI than depressed
 car::Anova(m_v1r1,'3')
 
 #effect with R striatum ROI
@@ -321,15 +325,16 @@ m_v1_unu=lme4::lmer(value_chosen_vba_mfx~UPPSPNEGURGENCY*Group*scale(vmPFC)*rein
 summary(m_v1_unu)
 car::Anova(m_v1_unu,'3') #also sig but not a mediator
 
-#baseline ideation: no group variable
-m_v1_bssi=lme4::lmer(value_chosen_vba_mfx~`BASELINE SSI`*scale(vmPFC)*reinf+(1|ID),data=roi_gdf)
+#baseline ideation: no group variable, only SSI > 0
+roi_gdf_ssi=subset(roi_gdf,`BASELINE SSI`>0)
+m_v1_bssi=lme4::lmer(value_chosen_vba_mfx~`BASELINE SSI`*scale(vmPFC)*reinf+(1|ID),data=roi_gdf_ssi)
 summary(m_v1_bssi)
-car::Anova(m_v1_bssi,'3') #sig int
+car::Anova(m_v1_bssi,'3') #sig int, but not huge
 
 #max lethality: no group variable
 m_v1_mlt=lme4::lmer(value_chosen_vba_mfx~max_lethality*scale(vmPFC)*reinf+(1|ID),data=roi_gdf)
 summary(m_v1_mlt)
-car::Anova(m_v1_mlt,'3')
+car::Anova(m_v1_mlt,'3') #sig int
 
 #binary lethality in attempters
 roi_gdf_att=subset(roi_gdf,Group=='Attempters')
@@ -340,14 +345,37 @@ car::Anova(m_v1_glt,'3')
 pre_m_v1_glt=predict(m_v1_glt)
 eff_m_v1_glt=Effect(c('vmPFC','reinf','GroupLeth'),m_v1_glt)
 dfeff_m_v1_glt=as.data.frame(eff_m_v1_glt)
+dfeff_m_v1_glt$fitpse=dfeff_m_v1_glt$fit+dfeff_m_v1_glt$se
+dfeff_m_v1_glt$fitmse=dfeff_m_v1_glt$fit-dfeff_m_v1_glt$se
+first_trials_att=subset(first_trials,Group=='Attempters')
 theme_set(theme_bw())
 ggplot(dfeff_m_v1_glt,
        aes(vmPFC,fit,colour=GroupLeth,fill=GroupLeth,linetype=reinf))+
   geom_ribbon(colour=NA,alpha=0.1,
-              aes(ymin=lower,ymax=upper))+
+              aes(ymin=fitmse,ymax=fitpse))+
   geom_line()+
   theme(panel.border = element_blank(),panel.grid.minor=element_blank())+
-  labs(x='vmPFC Long-term Value',y='Value of Next Choice',color='Attempt Lethality',linetype='Reinforcement')
+  labs(x='vmPFC Long-term Value',y='Value of Next Choice',linetype='Reinforcement')+
+  scale_colour_discrete(name='Attempt Lethality',
+                        breaks=c("HL Attempters","LL Attempters"),
+                      labels=c("High Lethality", "Low Lethality"))+
+  scale_fill_discrete(name='Attempt Lethality',
+                        breaks=c("HL Attempters","LL Attempters"),
+                        labels=c("High Lethality", "Low Lethality"))+
+  geom_rug(data=first_trials_att,aes(vmPFC,colour=GroupLeth),inherit.aes=F)+xlim(-.03,.08)+
+  theme(axis.title = element_text(size=17), axis.text=element_text(size=12),
+        legend.text=element_text(size=12),legend.title=element_text(size=17))
+
+ggplot(dfeff_m_v1,
+       aes(vmPFC,fit,colour=Group,fill=Group,linetype=reinf))+
+  geom_ribbon(colour=NA,alpha=0.1,
+              aes(ymin=fitmse,ymax=fitpse))+
+  geom_line()+
+  theme(panel.border = element_blank(),panel.grid.minor=element_blank())+
+  labs(x='vmPFC Long-term Value',y='Value of Next Choice',linetype='Reinforcement')+
+  geom_rug(data=first_trials,aes(vmPFC,colour=Group),inherit.aes=F)+xlim(-.03,.1)+
+  theme(axis.title = element_text(size=17), axis.text=element_text(size=12),
+        legend.text=element_text(size=12),legend.title=element_text(size=17))
 
 #all groups w/high vs. low lethality
 m_v1_glta=lme4::lmer(value_chosen_vba_mfx~GroupLeth*scale(vmPFC)*reinf+(1|ID),data=roi_gdf)
