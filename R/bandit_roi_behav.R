@@ -216,6 +216,12 @@ car::Anova(m_v2,'3')
 #read in task file to get objective probabilities of outcomes
 task_info=read.table('/Users/brownv/Documents/dnpl/Bandit Scripts/CORRECT-crdt-sched-vrbl-rich-2015-01-23.txt',
                      header=T,sep="\t",stringsAsFactors=F)
+
+# for Alex:
+# task_info=read.table('~/code/bandit_scripts/CORRECT-crdt-sched-vrbl-rich-2015-01-23.txt',
+#                      header=T,sep="\t",stringsAsFactors=F)
+
+
 task_info$Trial <- seq.int(nrow(task_info))
 task_info$prev_Arew=c(NA,task_info$Arew[1:(dim(task_info)[1]-1)])
 task_info$prev_Brew=c(NA,task_info$Brew[1:(dim(task_info)[1]-1)])
@@ -272,9 +278,10 @@ plot(em1f_nc, horiz = F)
 
 #### individual differences ####
 #EXIT
-m_v1_exit=lme4::lmer(value_chosen_vba_mfx~EXITtot*Group*scale(vmPFC)*reinf+(1|ID),data=roi_gdf)
+m_v1_exit=lme4::lmer(value_chosen_vba_mfx~scale(EXITtot)*Group*scale(vmPFC)*reinf+(1|ID),data=roi_gdf)
 summary(m_v1_exit)
 car::Anova(m_v1_exit,'3') #all group effects but int with reinforcement mediated by EXIT
+# AD: EXIT was not scaled; group effects stronger after scaling
 roi_gdf_lowe=subset(roi_gdf,EXITtot<mean(roi_gdf$EXITtot,na.rm=T))
 roi_gdf_highe=subset(roi_gdf,EXITtot>mean(roi_gdf$EXITtot,na.rm=T))
 m_v1_le=lme4::lmer(value_chosen_vba_mfx~Group*scale(vmPFC)*reinf+(1|ID),data=roi_gdf_lowe)
@@ -306,22 +313,23 @@ ggplot(dfeff_m_v1_he,
   labs(x='vmPFC Long-term Value',y='Value of Next Choice',linetype='Reinforcement')
 
 #DRS
-m_v1_drs=lme4::lmer(value_chosen_vba_mfx~TOTA_MDRS*Group*scale(vmPFC)*reinf+(1|ID),data=roi_gdf)
+m_v1_drs=lme4::lmer(value_chosen_vba_mfx~scale(TOTA_MDRS)*Group*scale(vmPFC)*reinf+(1|ID),data=roi_gdf)
 summary(m_v1_drs)
 car::Anova(m_v1_drs,'3') #sig but not a mediator
+# AD: scaled DRS and all predictors below to de-correlate interaction effects
 
 #WTAR
-m_v1_wtr=lme4::lmer(value_chosen_vba_mfx~WTARSS*Group*scale(vmPFC)*reinf+(1|ID),data=roi_gdf)
+m_v1_wtr=lme4::lmer(value_chosen_vba_mfx~scale(WTARSS)*Group*scale(vmPFC)*reinf+(1|ID),data=roi_gdf)
 summary(m_v1_wtr)
 car::Anova(m_v1_wtr,'3') #somewhat mediates
 
 #barratt nonplanning
-m_v1_bnp=lme4::lmer(value_chosen_vba_mfx~NONPLAN*Group*scale(vmPFC)*reinf+(1|ID),data=roi_gdf)
+m_v1_bnp=lme4::lmer(value_chosen_vba_mfx~scale(NONPLAN)*Group*scale(vmPFC)*reinf+(1|ID),data=roi_gdf)
 summary(m_v1_bnp)
 car::Anova(m_v1_bnp,'3') #also sig but not a mediator
 
 #upps negative urgency
-m_v1_unu=lme4::lmer(value_chosen_vba_mfx~UPPSPNEGURGENCY*Group*scale(vmPFC)*reinf+(1|ID),data=roi_gdf)
+m_v1_unu=lme4::lmer(value_chosen_vba_mfx~scale(UPPSPNEGURGENCY)*Group*scale(vmPFC)*reinf+(1|ID),data=roi_gdf)
 summary(m_v1_unu)
 car::Anova(m_v1_unu,'3') #also sig but not a mediator
 
