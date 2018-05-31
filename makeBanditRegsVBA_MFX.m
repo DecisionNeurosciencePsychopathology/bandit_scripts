@@ -78,9 +78,9 @@ for i = 3:length(dirs)
             end
             
             %get file paths
-            scriptName = mfilename('fullpath');
-            [currentpath, filename, fileextension]= fileparts(scriptName);
-            moveregs(currentpath,num2str(id),newfolder); %%%%%NO FILE
+%             scriptName = mfilename('fullpath');
+%             [currentpath, filename, fileextension]= fileparts(scriptName);
+%             moveregs(currentpath,num2str(id),newfolder); %%%%%NO FILE
                 
    
             %write the task data to file
