@@ -35,8 +35,9 @@ parameterization.use_reward_vec=0;
 
 %note: the bandit_vba_mfx file uses the structure of dirs rather than the
 %id used in single-subject bandit_vba
-[posterior,out,b] = bandit_vba_mfx(dirs,graphics,plot_subject,save_results,parameterization);
+[posterior_sub,out_sub,posterior_group,out_group,b] = bandit_vba_mfx(dirs,graphics,plot_subject,save_results,parameterization);
 
+int_num=1;
 for i = 3:length(dirs)
     
     %Until I think of a more elegent fix
@@ -47,9 +48,10 @@ for i = 3:length(dirs)
     %Quick patch for getting only the dirs not the .mat files
     %if dirs(i).bytes <=0 && exist(['regs/' dirs(i).name],'file')==0 %I think the 'regs' part is just to process those who haven't been processed yet
     if dirs(i).bytes <=0 
-        try
+%         try
             id=str2double(dirs(i).name);
-            b.id = id;
+            b{i}.id = id;
+            fprintf(num2str(id));
             
             %Update task_tracking data
             task_data.behave_completed=1;
@@ -63,7 +65,7 @@ for i = 3:length(dirs)
             task_data.behave_processed=1;
             
             %Write the regressors to file
-            b = banditmakeregressor_vba(b,out);
+            b{i-2} = banditmakeregressor_vba(b{i-2},out_sub{int_num});
             
             %We currently do not connect to Thorndike for bandit since
             %volumes are fixed, 
@@ -87,14 +89,15 @@ for i = 3:length(dirs)
             %record_subj_to_file(id,task_data) %%%%NO FILE
 
             
-        catch exception
-            
-            %write the task data to file
-            %record_subj_to_file(id,task_data) %%%%NO FILE
-            
-            %Record errors in logger
-            errorlog('bandit',b.id,exception)
-        end
+%         catch exception
+%             
+%             %write the task data to file
+%             %record_subj_to_file(id,task_data) %%%%NO FILE
+%             
+%             %Record errors in logger
+%             errorlog('bandit',b.id,exception)
+%         end
+        int_num=int_num+1;
     end
 end
 

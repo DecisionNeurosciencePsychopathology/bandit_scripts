@@ -1,4 +1,4 @@
-function [posterior,out,b] = bandit_vba_mfx(dirs,graphics,plot_subject,save_results,parameterization)
+function [posterior_sub,out_sub,posterior_group,out_group,b] = bandit_vba_mfx(dirs,graphics,plot_subject,save_results,parameterization)
 
 
 
@@ -143,27 +143,28 @@ n_hidden_states = 4; %Track value for each arm of the bandit + PE
  all_u=cell(size(dirs,1)-2,1);
  all_y=cell(size(dirs,1)-2,1);
  all_options=cell(size(dirs,1)-2,1); %TODO: take out empty subjects
+ b=cell(size(dirs,1)-2,1);
 
  % Loop through subjects
  for i = 3:length(dirs)
      
      if dirs(i).bytes <=0
-         try
+%          try
              id=str2double(dirs(i).name);
              
              % Load in the subject's data
              %u is 2 x ntrials where first row is actions and second row is reward
-             b(i-2) = bandit_vba_read_in_data( 'id',id,'data_dir','subjects'); %REPLACE subjects with local dir
-             b(i-2).id = id;
-             censor = b(i-2).chosen_stim==999; %Censor some trials first
-             subjects_actions = b(i-2).chosen_stim;
+             b{i-2} = bandit_vba_read_in_data( 'id',id,'data_dir','subjects'); %REPLACE subjects with local dir
+             b{i-2}.id = id;
+             censor = b{i-2}.chosen_stim==999; %Censor some trials first
+             subjects_actions = b{i-2}.chosen_stim;
              subjects_actions(censor)=nan;
              all_u{i-2}(1,:) = subjects_actions; %Chosen action [1 2 3]
              if use_reward_vec
-                 all_u{i-2}(2,:) = b(i-2).rewardVec; %Reward has actual value [10 25 50]
-                 all_u{i-2}(3,:) = b(i-2).stakeVec; %Stake
+                 all_u{i-2}(2,:) = b{i-2}.rewardVec; %Reward has actual value [10 25 50]
+                 all_u{i-2}(3,:) = b{i-2}.stakeVec; %Stake
              else
-                 all_u{i-2}(2,:) = b(i-2).stim_ACC; %Reward or not [1 0]
+                 all_u{i-2}(2,:) = b{i-2}.stim_ACC; %Reward or not [1 0]
                  all_u{i-2}(3,:) = NaN;
              end
              all_u{i-2} = [zeros(size(all_u{i-2},1),1) all_u{i-2}(:,1:end-1)]; %Shift the u!
@@ -185,8 +186,8 @@ n_hidden_states = 4; %Track value for each arm of the bandit + PE
              end
              
              % set up models within evolution/observation Fx
-             all_options{i-2}.inF.b = b(i-2);
-             all_options{i-2}.inG.b = b(i-2);
+             all_options{i-2}.inF.b = b{i-2};
+             all_options{i-2}.inG.b = b{i-2};
              
              % skip first trial
              all_options{i-2}.skipf = zeros(1,n_t);
@@ -237,32 +238,82 @@ n_hidden_states = 4; %Track value for each arm of the bandit + PE
              %Censor any bad trials
              all_options{i-2}.isYout = repmat(censor,1,3)';
              all_options{i-2}.inF.Yout = all_options{i-2}.isYout;
-         catch exception
              
-             %write the task data to file
-             %record_subj_to_file(id,task_data) %%%%NO FILE
+             if fix_all_params
+                 all_options{i-2}.inF.fixed_params=1;
+                 all_options{i-2}.inG.fixed_params=1;
+             else
+                 all_options{i-2}.inF.fixed_params=0;
+                 all_options{i-2}.inG.fixed_params=0;
+             end
              
-             %Record errors in logger
-             errorlog('bandit',b.id,exception)
-         end
+             %Evolution options- set as 0 and then overwrite below if indicated
+             all_options{i-2}.inF.utility = 0;
+             all_options{i-2}.inF.valence = 0;
+             all_options{i-2}.inF.decay = 0;
+             
+             
+             %Turn graphics on or off
+             if ~graphics
+                 all_options{i-2}.DisplayWin = 0;
+                 all_options{i-2}.GnFigs = 0;
+             end
+             % set up dim defaults
+             if valence && ~disappointment
+                 n_theta = 3; %Number of evolution params (AlphaWin AlphaLoss LossDecay WinDecay)
+                 all_options{i-2}.inF.valence = 1;
+                 all_options{i-2}.inF.disappointment= 0;
+                 
+             elseif valence && disappointment
+                 n_theta = 4; %Number of evolution params (AlphaWin AlphaLoss LossDecay WinDecay)
+                 all_options{i-2}.inF.valence = 1;
+                 all_options{i-2}.inF.disappointment= 1;
+                 
+             else
+                 n_theta = 2;
+             end
+             
+             if utility
+                 n_theta = n_theta +1; %Add in steepness parameter
+                 all_options{i-2}.inF.utility = 1;
+             end
+             
+             if fix_decay
+                 n_theta = n_theta-1;
+                 all_options{i-2}.inF.fix_decay = 1;
+             else
+                 all_options{i-2}.inF.fix_decay = 0;
+             end
+             %          catch exception
+%              
+%              %write the task data to file
+%              %record_subj_to_file(id,task_data) %%%%NO FILE
+%              
+%              %Record errors in logger
+%              errorlog('bandit',b.id,exception)
+%          end
      end
  end
- 
+ all_y_use=all_y(~cellfun('isempty',all_y));
+ all_u_use=all_u(~cellfun('isempty',all_u));
+ all_options_use=all_options(~cellfun('isempty',all_options));
              
              % Run the vba model
-             [posterior_sub,out_sub,posterior_group,out_group] = VBA_NLStateSpaceModel(all_y{i-2},all_u,f_name,g_name,dim,all_options{i-2},priors,options); %VBA_MFX(y,u,f_fname,g_fname,dim,options,priors_group, options_group)
+             [posterior_sub,out_sub,posterior_group,out_group] = VBA_MFX(all_y_use,all_u_use,f_name,g_name,dim,all_options_use,priors,options); %VBA_MFX(y,u,f_fname,g_fname,dim,options,priors_group, options_group)
              
+             inc_num=1;
 for i = 3:length(dirs)
-             bad_trials = find(isnan(all_u{i-2}(1,:)));
-             winning_trials = find((b(i-2).stim_ACC==1)' & ~ismember(1:n_t,bad_trials-1));
-             losing_trials = find((b(i-2).stim_ACC==0)' & ~ismember(1:n_t,bad_trials-1));
+     if dirs(i).bytes <=0
+             bad_trials = find(isnan(all_u_use{inc_num}(1,:)));
+             winning_trials = find((b{i-2}.stim_ACC==1)' & ~ismember(1:n_t,bad_trials-1));
+             losing_trials = find((b{i-2}.stim_ACC==0)' & ~ismember(1:n_t,bad_trials-1));
              
              %Seperate the hidden states
-             choices = out.suffStat.muX(1:3,:);
-             delta = out.suffStat.muX(4,:);
+             choices = out_sub{inc_num}.suffStat.muX(1:3,:);
+             delta = out_sub{inc_num}.suffStat.muX(4,:);
              
              %Shift PE Regressor if needed...
-             out.suffStat.delta = shiftMe(delta);
+             out_sub{inc_num}.suffStat.delta = shiftMe(delta);
              
              %SHOULD THESE CHANGE?
              %Values are shifted to the left add on as many zeros as needed to regain
@@ -270,137 +321,137 @@ for i = 3:length(dirs)
              muX_diff = [diff(choices,1,2) zeros(size(choices,1),1)];
              PEunsigned = max(abs(muX_diff));
              %PEunsigned = [PEunsigned 0]; %Tack on zero to the end?
-             PEplus = zeros(1,length(b(i-2).stim_ACC));
-             PEminus = zeros(1,length(b(i-2).stim_ACC));
-             out.suffStat.PEchosen_pos = zeros(1,length(b(i-2).stim_ACC));
-             out.suffStat.PEchosen_neg = zeros(1,length(b(i-2).stim_ACC));
+             PEplus = zeros(1,length(b{i-2}.stim_ACC));
+             PEminus = zeros(1,length(b{i-2}.stim_ACC));
+             out_sub{inc_num}.suffStat.PEchosen_pos = zeros(1,length(b{i-2}.stim_ACC));
+             out_sub{inc_num}.suffStat.PEchosen_neg = zeros(1,length(b{i-2}.stim_ACC));
              PEplus(winning_trials) = PEunsigned(winning_trials); %Good!
              PEminus(losing_trials) = PEunsigned(losing_trials); %Out of bounds because losing trials contains index 300
-             out.suffStat.PEunsigned=PEunsigned;
-             out.suffStat.PEplus=PEplus;
-             out.suffStat.PEminus=PEminus;
-             out.suffStat.PEsigned=PEplus-PEminus;
+             out_sub{inc_num}.suffStat.PEunsigned=PEunsigned;
+             out_sub{inc_num}.suffStat.PEplus=PEplus;
+             out_sub{inc_num}.suffStat.PEminus=PEminus;
+             out_sub{inc_num}.suffStat.PEsigned=PEplus-PEminus;
              %Grab the option they chose and remove any error codes
-             chosen_index = all_y{i-2};
-             chosen_index = carryValueForward(chosen_index,all_y{i-2}); %If there are any Nan's replace them with the most recent decision made
+             chosen_index = all_y_use{inc_num};
+             chosen_index = carryValueForward(chosen_index,all_y_use{inc_num}); %If there are any Nan's replace them with the most recent decision made
              
              %PEchosen is now the pe hidden state
-             %out.suffStat.PEchosen = muX_diff(logical(chosen_index))'; %PE of chosen choice
-             out.suffStat.PEchosen = out.suffStat.delta; %PE of chosen choice
-             out.suffStat.PEchosen_pos(out.suffStat.PEchosen>0) = out.suffStat.PEchosen(out.suffStat.PEchosen>0);
-             out.suffStat.PEchosen_neg(out.suffStat.PEchosen<0) = out.suffStat.PEchosen(out.suffStat.PEchosen<0);
+             %out_sub{inc_num}.suffStat.PEchosen = muX_diff(logical(chosen_index))'; %PE of chosen choice
+             out_sub{inc_num}.suffStat.PEchosen = out_sub{inc_num}.suffStat.delta; %PE of chosen choice
+             out_sub{inc_num}.suffStat.PEchosen_pos(out_sub{inc_num}.suffStat.PEchosen>0) = out_sub{inc_num}.suffStat.PEchosen(out_sub{inc_num}.suffStat.PEchosen>0);
+             out_sub{inc_num}.suffStat.PEchosen_neg(out_sub{inc_num}.suffStat.PEchosen<0) = out_sub{inc_num}.suffStat.PEchosen(out_sub{inc_num}.suffStat.PEchosen<0);
              
              %Create Value regressors
-             out.suffStat.value = max(choices); %Max value of each hidden state per trial
-             out.suffStat.value_diff = out.suffStat.value - mean(choices);
-             out.suffStat.value_chosen = choices(logical(chosen_index))';
-             out.suffStat.value_not_chosen=choices(~logical(chosen_index))';
-             out.suffStat.value_not_chosen = reshape(out.suffStat.value_not_chosen,2,300);
-             not_chosen_sum=sum(out.suffStat.value_not_chosen); %Keep this var on ice for now
-             out.suffStat.value_chosen_diff = out.suffStat.value_chosen - mean(out.suffStat.value_not_chosen); %Do not shift this one!
+             out_sub{inc_num}.suffStat.value = max(choices); %Max value of each hidden state per trial
+             out_sub{inc_num}.suffStat.value_diff = out_sub{inc_num}.suffStat.value - mean(choices);
+             out_sub{inc_num}.suffStat.value_chosen = choices(logical(chosen_index))';
+             out_sub{inc_num}.suffStat.value_not_chosen=choices(~logical(chosen_index))';
+             out_sub{inc_num}.suffStat.value_not_chosen = reshape(out_sub{inc_num}.suffStat.value_not_chosen,2,300);
+             not_chosen_sum=sum(out_sub{inc_num}.suffStat.value_not_chosen); %Keep this var on ice for now
+             out_sub{inc_num}.suffStat.value_chosen_diff = out_sub{inc_num}.suffStat.value_chosen - mean(out_sub{inc_num}.suffStat.value_not_chosen); %Do not shift this one!
              
              %Create different flavor of value difference regressor in which v(t+1) is
              %indexed by chosen_index, (i.e. Vtplus1(chosen_index)) and subtracted by
              %the mean(Vtplus1(~chosen_index)))
-             out.suffStat.vtplus1 = choices(:,2:end);
-             out.suffStat.vtplus1_not_chosen=out.suffStat.vtplus1(~logical(chosen_index(:,1:end-1)))';
-             out.suffStat.vtplus1_not_chosen = reshape(out.suffStat.vtplus1_not_chosen,2,length(out.suffStat.vtplus1));
-             out.suffStat.vtplus1_chosen_diff=[(out.suffStat.vtplus1(logical(chosen_index(:,1:end-1)))' - mean(out.suffStat.vtplus1_not_chosen)) 0];
+             out_sub{inc_num}.suffStat.vtplus1 = choices(:,2:end);
+             out_sub{inc_num}.suffStat.vtplus1_not_chosen=out_sub{inc_num}.suffStat.vtplus1(~logical(chosen_index(:,1:end-1)))';
+             out_sub{inc_num}.suffStat.vtplus1_not_chosen = reshape(out_sub{inc_num}.suffStat.vtplus1_not_chosen,2,length(out_sub{inc_num}.suffStat.vtplus1));
+             out_sub{inc_num}.suffStat.vtplus1_chosen_diff=[(out_sub{inc_num}.suffStat.vtplus1(logical(chosen_index(:,1:end-1)))' - mean(out_sub{inc_num}.suffStat.vtplus1_not_chosen)) 0];
              
              %Create a regrssor like vtplus1 but using the max subtracted by the median - V.B.
-             out.suffStat.vtplus1_max=[(max(out.suffStat.vtplus1) - median(out.suffStat.vtplus1)) 0];
+             out_sub{inc_num}.suffStat.vtplus1_max=[(max(out_sub{inc_num}.suffStat.vtplus1) - median(out_sub{inc_num}.suffStat.vtplus1)) 0];
              
              %Value chosen was normalized at one point?
-             %out.suffStat.value_chosen=out.suffStat.value_chosen./sum(choices);
+             %out_sub{inc_num}.suffStat.value_chosen=out_sub{inc_num}.suffStat.value_chosen./sum(choices);
              
              %Shift all the value regressors by 1
-             out.suffStat.value=shiftMe(out.suffStat.value);
-             out.suffStat.value_diff=shiftMe(out.suffStat.value_diff);
-             out.suffStat.value_chosen=shiftMe(out.suffStat.value_chosen);
-             out.suffStat.value_not_chosen=shiftMe(out.suffStat.value_not_chosen);
-             %out.suffStat.value_chosen=shiftMe(out.suffStat.value_chosen);
-             %out.suffStat.value_chosen(1) = 0; %This is a NAN since 0/0
+             out_sub{inc_num}.suffStat.value=shiftMe(out_sub{inc_num}.suffStat.value);
+             out_sub{inc_num}.suffStat.value_diff=shiftMe(out_sub{inc_num}.suffStat.value_diff);
+             out_sub{inc_num}.suffStat.value_chosen=shiftMe(out_sub{inc_num}.suffStat.value_chosen);
+             out_sub{inc_num}.suffStat.value_not_chosen=shiftMe(out_sub{inc_num}.suffStat.value_not_chosen);
+             %out_sub{inc_num}.suffStat.value_chosen=shiftMe(out_sub{inc_num}.suffStat.value_chosen);
+             %out_sub{inc_num}.suffStat.value_chosen(1) = 0; %This is a NAN since 0/0
              
              %Standardize the PEChosen and ValueChosenDiff regs
              
              %zscore is only in stat toolbox?
              try
-                 out.suffStat.value_chosen_diff_standardized = ...
-                     zscore(out.suffStat.value_chosen_diff);
-                 out.suffStat.PEchosen_standardized = ...
-                     zscore(out.suffStat.PEchosen);
+                 out_sub{inc_num}.suffStat.value_chosen_diff_standardized = ...
+                     zscore(out_sub{inc_num}.suffStat.value_chosen_diff);
+                 out_sub{inc_num}.suffStat.PEchosen_standardized = ...
+                     zscore(out_sub{inc_num}.suffStat.PEchosen);
              catch
                  fprintf('Stat toolbox not found!\n\n')
              end
              
              %Create reward stake and just stake align it with trialonset
-             out.suffStat.reward_stake = b(i-2).rewardVec';
-             out.suffStat.reward_stake(b(i-2).rewardVec==10)=1;
-             out.suffStat.reward_stake(b(i-2).rewardVec==25)=2;
-             out.suffStat.reward_stake(b(i-2).rewardVec==50)=3;
+             out_sub{inc_num}.suffStat.reward_stake = b{i-2}.rewardVec';
+             out_sub{inc_num}.suffStat.reward_stake(b{i-2}.rewardVec==10)=1;
+             out_sub{inc_num}.suffStat.reward_stake(b{i-2}.rewardVec==25)=2;
+             out_sub{inc_num}.suffStat.reward_stake(b{i-2}.rewardVec==50)=3;
              
              %mean corrected rew mag
-             out.suffStat.reward_stake_mc = out.suffStat.reward_stake - mean(out.suffStat.reward_stake);
+             out_sub{inc_num}.suffStat.reward_stake_mc = out_sub{inc_num}.suffStat.reward_stake - mean(out_sub{inc_num}.suffStat.reward_stake);
              
              %This is what they could have won per trial <- what we want for createing the probabilities
-             out.suffStat.stake = b(i-2).stakeVec';
-             out.suffStat.stake(b(i-2).stakeVec==10)=1;
-             out.suffStat.stake(b(i-2).stakeVec==25)=2;
-             out.suffStat.stake(b(i-2).stakeVec==50)=3;
+             out_sub{inc_num}.suffStat.stake = b{i-2}.stakeVec';
+             out_sub{inc_num}.suffStat.stake(b{i-2}.stakeVec==10)=1;
+             out_sub{inc_num}.suffStat.stake(b{i-2}.stakeVec==25)=2;
+             out_sub{inc_num}.suffStat.stake(b{i-2}.stakeVec==50)=3;
              
              %Mean corrected stake regressor
-             out.suffStat.stake_mc = out.suffStat.stake - mean(out.suffStat.stake);
+             out_sub{inc_num}.suffStat.stake_mc = out_sub{inc_num}.suffStat.stake - mean(out_sub{inc_num}.suffStat.stake);
              
              
              %Percentages of reward magnitude and staying
-             out.suffStat.mag10_trials = find(b(i-2).stakeVec==10);
-             out.suffStat.mag25_trials = find(b(i-2).stakeVec==25);
-             out.suffStat.mag50_trials = find(b(i-2).stakeVec==50);
+             out_sub{inc_num}.suffStat.mag10_trials = find(b{i-2}.stakeVec==10);
+             out_sub{inc_num}.suffStat.mag25_trials = find(b{i-2}.stakeVec==25);
+             out_sub{inc_num}.suffStat.mag50_trials = find(b{i-2}.stakeVec==50);
              
              %Determine number of trials with specific magnitude that were win/loss
-             out.suffStat.win_10_trials = intersect(winning_trials,out.suffStat.mag10_trials);
-             out.suffStat.win_25_trials = intersect(winning_trials,out.suffStat.mag25_trials);
-             out.suffStat.win_50_trials = intersect(winning_trials,out.suffStat.mag50_trials);
-             out.suffStat.loss_10_trials = intersect(losing_trials,out.suffStat.mag10_trials);
-             out.suffStat.loss_25_trials = intersect(losing_trials,out.suffStat.mag25_trials);
-             out.suffStat.loss_50_trials = intersect(losing_trials,out.suffStat.mag50_trials);
+             out_sub{inc_num}.suffStat.win_10_trials = intersect(winning_trials,out_sub{inc_num}.suffStat.mag10_trials);
+             out_sub{inc_num}.suffStat.win_25_trials = intersect(winning_trials,out_sub{inc_num}.suffStat.mag25_trials);
+             out_sub{inc_num}.suffStat.win_50_trials = intersect(winning_trials,out_sub{inc_num}.suffStat.mag50_trials);
+             out_sub{inc_num}.suffStat.loss_10_trials = intersect(losing_trials,out_sub{inc_num}.suffStat.mag10_trials);
+             out_sub{inc_num}.suffStat.loss_25_trials = intersect(losing_trials,out_sub{inc_num}.suffStat.mag25_trials);
+             out_sub{inc_num}.suffStat.loss_50_trials = intersect(losing_trials,out_sub{inc_num}.suffStat.mag50_trials);
              
              
              %Find stay trials
-             error_code = 999; %If they missed a trial, ie don't want two zeros in a row to count...
-             out.suffStat.stay_trials  = find(logical([0; b(i-2).chosen_stim(2:end)==b(i-2).chosen_stim(1:end-1)]) & b(i-2).chosen_stim~=error_code);
+             error_code = 999; %If they missed a trial, ie don't want two zeros in a row to inc_num...
+             out_sub{inc_num}.suffStat.stay_trials  = find(logical([0; b{i-2}.chosen_stim(2:end)==b{i-2}.chosen_stim(1:end-1)]) & b{i-2}.chosen_stim~=error_code);
              
              %These aren;t really nedded but its good to have a breakdown...
-             out.suffStat.stay_10_trials = intersect(out.suffStat.stay_trials,out.suffStat.mag10_trials);
-             out.suffStat.stay_25_trials = intersect(out.suffStat.stay_trials,out.suffStat.mag25_trials);
-             out.suffStat.stay_50_trials = intersect(out.suffStat.stay_trials,out.suffStat.mag50_trials);
+             out_sub{inc_num}.suffStat.stay_10_trials = intersect(out_sub{inc_num}.suffStat.stay_trials,out_sub{inc_num}.suffStat.mag10_trials);
+             out_sub{inc_num}.suffStat.stay_25_trials = intersect(out_sub{inc_num}.suffStat.stay_trials,out_sub{inc_num}.suffStat.mag25_trials);
+             out_sub{inc_num}.suffStat.stay_50_trials = intersect(out_sub{inc_num}.suffStat.stay_trials,out_sub{inc_num}.suffStat.mag50_trials);
              
              
              %Stay prob example (number of win 10 rew mag trials which subj stayed / number of win 10 rew mag trials)
-             out.suffStat.win_stay_10_prob = length(intersect(out.suffStat.win_10_trials,out.suffStat.stay_trials))./length(out.suffStat.win_10_trials);
-             out.suffStat.win_stay_25_prob = length(intersect(out.suffStat.win_25_trials,out.suffStat.stay_trials))./length(out.suffStat.win_25_trials);
-             out.suffStat.win_stay_50_prob = length(intersect(out.suffStat.win_50_trials,out.suffStat.stay_trials))./length(out.suffStat.win_50_trials);
-             out.suffStat.loss_stay_10_prob = length(intersect(out.suffStat.loss_10_trials,out.suffStat.stay_trials))./length(out.suffStat.loss_10_trials);
-             out.suffStat.loss_stay_25_prob = length(intersect(out.suffStat.loss_25_trials,out.suffStat.stay_trials))./length(out.suffStat.loss_25_trials);
-             out.suffStat.loss_stay_50_prob = length(intersect(out.suffStat.loss_50_trials,out.suffStat.stay_trials))./length(out.suffStat.loss_50_trials);
+             out_sub{inc_num}.suffStat.win_stay_10_prob = length(intersect(out_sub{inc_num}.suffStat.win_10_trials,out_sub{inc_num}.suffStat.stay_trials))./length(out_sub{inc_num}.suffStat.win_10_trials);
+             out_sub{inc_num}.suffStat.win_stay_25_prob = length(intersect(out_sub{inc_num}.suffStat.win_25_trials,out_sub{inc_num}.suffStat.stay_trials))./length(out_sub{inc_num}.suffStat.win_25_trials);
+             out_sub{inc_num}.suffStat.win_stay_50_prob = length(intersect(out_sub{inc_num}.suffStat.win_50_trials,out_sub{inc_num}.suffStat.stay_trials))./length(out_sub{inc_num}.suffStat.win_50_trials);
+             out_sub{inc_num}.suffStat.loss_stay_10_prob = length(intersect(out_sub{inc_num}.suffStat.loss_10_trials,out_sub{inc_num}.suffStat.stay_trials))./length(out_sub{inc_num}.suffStat.loss_10_trials);
+             out_sub{inc_num}.suffStat.loss_stay_25_prob = length(intersect(out_sub{inc_num}.suffStat.loss_25_trials,out_sub{inc_num}.suffStat.stay_trials))./length(out_sub{inc_num}.suffStat.loss_25_trials);
+             out_sub{inc_num}.suffStat.loss_stay_50_prob = length(intersect(out_sub{inc_num}.suffStat.loss_50_trials,out_sub{inc_num}.suffStat.stay_trials))./length(out_sub{inc_num}.suffStat.loss_50_trials);
              
              
              
              %Old - incorrect
-             % out.suffStat.stay_10_prob = sum(out.suffStat.stay_10)./length(out.suffStat.rew10_trials);
-             % out.suffStat.stay_25_prob = sum(out.suffStat.stay_25)./length(out.suffStat.rew25_trials);
-             % out.suffStat.stay_50_prob = sum(out.suffStat.stay_50)./length(out.suffStat.rew50_trials);
-             % out.suffStat.diff_10_50_prob = out.suffStat.stay_10_prob - out.suffStat.stay_50_prob;
+             % out_sub{inc_num}.suffStat.stay_10_prob = sum(out_sub{inc_num}.suffStat.stay_10)./length(out_sub{inc_num}.suffStat.rew10_trials);
+             % out_sub{inc_num}.suffStat.stay_25_prob = sum(out_sub{inc_num}.suffStat.stay_25)./length(out_sub{inc_num}.suffStat.rew25_trials);
+             % out_sub{inc_num}.suffStat.stay_50_prob = sum(out_sub{inc_num}.suffStat.stay_50)./length(out_sub{inc_num}.suffStat.rew50_trials);
+             % out_sub{inc_num}.suffStat.diff_10_50_prob = out_sub{inc_num}.suffStat.stay_10_prob - out_sub{inc_num}.suffStat.stay_50_prob;
              
              
-         
-
+         inc_num=inc_num+1;
+     end
  end
 
-%Plot the subjects choices if needed
+%Plot the subjects choices if needed %NEEDS FIXING
 if plot_subject
     for i = 3:length(dirs)
-        plot_subject_vs_contingency(b(i-2),out)
+        plot_subject_vs_contingency(b{i-2},out_sub{inc_num})
     end
 end
 
@@ -450,17 +501,17 @@ end
 % out.suffStat.PE(~win_index) = diff_of_muX(~win_index)./alphaLoss; %Handle losses
 
 
-if save_results
-    if fix_all_params
-        file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_first_fixed_params',id,use_reward_vec);
-        file_path = 'vba_output/fixed_params';
-        file_str = [file_path filesep file_name];
-    else
-        file_name = sprintf('all_bandit_vba_output_%d_rewVec',use_reward_vec);
-        file_str = [file_path filesep file_name];
-    end
-    save(file_str,'posterior', 'out', 'b')
-end
+% if save_results
+%     if fix_all_params
+%         file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_first_fixed_params',id,use_reward_vec);
+%         file_path = 'vba_output/fixed_params';
+%         file_str = [file_path filesep file_name];
+%     else
+%         file_name = sprintf('all_bandit_vba_output_%d_rewVec',use_reward_vec);
+%         file_str = [file_path filesep file_name];
+%     end
+%     save(file_str,'posterior', 'out', 'b')
+% end
 
 function x=shiftMe(x)
 %Shift the reg data by 1 to the left
