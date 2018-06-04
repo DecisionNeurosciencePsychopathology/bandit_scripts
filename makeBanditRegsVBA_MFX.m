@@ -88,31 +88,31 @@ for i = 3:length(dirs)
             end
             
             %Write the regressors to file
-            b{i-2} = banditmakeregressor_vba(b{i-2},out_sub{int_num});
+            b{i-2} = banditmakeregressor_vba(b{i-2},out_sub{int_num},1);
             
-            if  exist(moveregs)>0 %#ok<EXIST>
-                %We currently do not connect to Thorndike for bandit since
-                %volumes are fixed,
-                
-                %move the regressor files to thorndike
-                if exist('/Volumes/bek','dir')==7
-                    newfolder='/Volumes/bek/learn/regs/bandit'; %folder to be place in within thorndike
-                elseif exist('T:/learn/','dir')==7 %VB filepath
-                    newfolder='T:/learn/regs/bandit';
-                else
-                    print('unfamiliar directory structure')
-                end
-                
-                %get file paths
-                scriptName = mfilename('fullpath');
-                [currentpath, filename, fileextension]= fileparts(scriptName);
-                moveregs(currentpath,num2str(id),newfolder); 
-                
-                if task_tracking==1
-                    %write the task data to file
-                    record_subj_to_file(id,task_data)
-                end
-            end
+%             if  exist('moveregs')>0 %#ok<EXIST>
+%                 %We currently do not connect to Thorndike for bandit since
+%                 %volumes are fixed,
+%                 
+%                 %move the regressor files to thorndike
+%                 if exist('/Volumes/bek','dir')==7
+%                     newfolder='/Volumes/bek/learn/regs/bandit'; %folder to be place in within thorndike
+%                 elseif exist('T:/learn/','dir')==7 %VB filepath
+%                     newfolder='T:/learn/regs/bandit';
+%                 else
+%                     print('unfamiliar directory structure')
+%                 end
+%                 
+%                 %get file paths
+%                 scriptName = mfilename('fullpath');
+%                 [currentpath, filename, fileextension]= fileparts(scriptName);
+%                 moveregs(currentpath,num2str(id),newfolder); 
+%                 
+%                 if task_tracking==1
+%                     %write the task data to file
+%                     record_subj_to_file(id,task_data)
+%                 end
+%             end
 
             
 %         catch exception
@@ -129,7 +129,14 @@ end
 
 %make overall output
 b_red=b(~cellfun('isempty',b));
-check_ids=b_red{:}.id(b_red{:}.id~=out_subj{:}.id,:);
+check_ids=zeros(127,2);
+for subj=1:length(b_red)
+check_ids(subj,1)=b_red{subj}.id;
+check_ids(subj,2)=out_sub{subj}.id;
+end
+if size(check_ids(check_ids(:,1)~=check_ids(:,2),:),1)>0
+    print('warning: subject IDs in b and out_subj do not match!')
+end
 
 
 %Close up anything that's stil open

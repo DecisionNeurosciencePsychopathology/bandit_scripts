@@ -1,8 +1,12 @@
-function b = banditmakeregressor_vba(b,out)
+function b = banditmakeregressor_vba(b,out,MFX_flag)
 
 fprintf('\nCreating subject specific regressor files\n\n');
 
-data_dump_str=sprintf('regs/%s/%s',num2str(b.id),num2str(b.id));
+if nargin==3&&MFX_flag==1
+    data_dump_str=sprintf('regs/%s/%s_MFX_',num2str(b.id),num2str(b.id));
+else
+    data_dump_str=sprintf('regs/%s/%s',num2str(b.id),num2str(b.id));
+end
 sub_folder=sprintf('regs/%s',num2str(b.id));
  
 if ~exist(sub_folder,'file')
