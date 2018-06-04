@@ -297,14 +297,23 @@ n_hidden_states = 4; %Track value for each arm of the bandit + PE
  all_y_use=all_y(~cellfun('isempty',all_y));
  all_u_use=all_u(~cellfun('isempty',all_u));
  all_options_use=all_options(~cellfun('isempty',all_options));
-             
-             % Run the vba model
-             [posterior_sub,out_sub,posterior_group,out_group] = VBA_MFX(all_y_use,all_u_use,f_name,g_name,dim,all_options_use,priors,options); %VBA_MFX(y,u,f_fname,g_fname,dim,options,priors_group, options_group)
-             
-             inc_num=1;
+ 
+ % Run the vba model
+ [posterior_sub,out_sub,posterior_group,out_group] = VBA_MFX(all_y_use,all_u_use,f_name,g_name,dim,all_options_use,priors,options); %VBA_MFX(y,u,f_fname,g_fname,dim,options,priors_group, options_group)
+
+ 
+ 
+ 
+ inc_num=1;
 for i = 3:length(dirs)
      if dirs(i).bytes <=0
-             bad_trials = find(isnan(all_u_use{inc_num}(1,:)));
+         
+         %add ID #s to subject structures
+         out_sub{inc_num}.id=all_options_use{inc_num}.inF.b.id;
+         posterior_sub{inc_num}.id=all_options_use{inc_num}.inF.b.id;
+         
+         
+         bad_trials = find(isnan(all_u_use{inc_num}(1,:)));
              winning_trials = find((b{i-2}.stim_ACC==1)' & ~ismember(1:n_t,bad_trials-1));
              losing_trials = find((b{i-2}.stim_ACC==0)' & ~ismember(1:n_t,bad_trials-1));
              
