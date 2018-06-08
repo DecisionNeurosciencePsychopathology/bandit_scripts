@@ -1,16 +1,7 @@
 function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization)
 
-
-
-%% fits BANDIT rl model to 3 armed bandit subject data using VBA toolbox
-% example call:
-% [posterior,out]=bandit_vba(id, multinomial,multisession, saveresults, graphics)
-% id:           6-digit subject id from subject database
-% multinomial:  if 1 fits p_chosen from the softmax; continuous RT (multinomial=0) works less well
-% multisession: treats runs/conditions as separate, helps fit (do not allow X0 to vary though)
-% fixed_params_across_runs -- self-explanatoryr
-% n_steps:      number of time bins
-%%
+% fits BANDIT rl model to 3 armed bandit subject data using VBA toolbox
+%
 close all
 
 valence = parameterization.valence;
@@ -21,23 +12,6 @@ regret = parameterization.regret;
 fix_all_params = parameterization.fix_all_params ;
 use_reward_vec = parameterization.use_reward_vec;
 
-
-% 
-% if nargin<2
-%     graphics=0;
-%     plot_subject=0;
-% elseif nargin<3
-%     plot_subject =0;
-%     valence = 1;
-% elseif nargin<8		
-%     %if we are fixing the parameters		
-%     fix_all_params = 0; %This should really really be an extrenal variable, make this happen.		
-% end
-
-
-%I think it would be easier just to not make this an argument
-% use_reward_vec = 1;
-
 %If we only want to use the first 150 trials
 use_first_150 = 0;
 
@@ -45,8 +19,6 @@ use_first_150 = 0;
 %% Where to look for data
 %Quick username check, and path setting
 
-[~, me] = system('whoami');
-me = strtrim(me);
 if save_results
     file_path = 'vba_output';
 else
@@ -66,12 +38,12 @@ if ~graphics
 end
 %% set up dim defaults
 if valence && ~disappointment
-    n_theta = 3; %Number of evolution params (AlphaWin AlphaLoss LossDecay WinDecay)
+    n_theta = 3; %Number of evolution params (AlphaWin AlphaLoss Beta)
     options.inF.valence = 1;
     options.inF.disappointment= 0;
 
 elseif valence && disappointment
-    n_theta = 4; %Number of evolution params (AlphaWin AlphaLoss LossDecay WinDecay)
+    n_theta = 4; %Number of evolution params (AlphaWin AlphaLoss Beta Omega)
     options.inF.valence = 1;
     options.inF.disappointment= 1;
 
@@ -83,14 +55,6 @@ if utility
     n_theta = n_theta +1; %Add in steepness parameter
     options.inF.utility = 1;
 end
-
-
-% % % if ~fix_decay
-% % %     n_theta = n_theta-1;
-% % %     options.inF.decay = 0;
-% % % else
-% % %     options.inF.decay = 1;
-% % % end
 
 if fix_decay
     n_theta = n_theta-1;
@@ -136,7 +100,7 @@ end
 u = [zeros(size(u,1),1) u(:,1:end-1)]; %Shift the u!
 
 %Only use the first 150 trials
-if use_first_150
+if use_first_150==1
    n_t = n_t/2; %Should take care of the y
    u = u(:,1:n_t);
    censor = censor(1:n_t);
@@ -212,13 +176,13 @@ options.inF.Yout = options.isYout;
 [posterior,out] = VBA_NLStateSpaceModel(y,u,f_name,g_name,dim,options);
 
 %Plot the subjects choices if needed
-if plot_subject
+if plot_subject==1
     plot_subject_vs_contingency(b,out)
 end
 
 %By pass saving here since we are only interested in the params right now.
-if save_results
-    if use_first_150
+if save_results==1
+    if use_first_150==1
         %Save value chosen as well
         chosen_index = y;
         chosen_index = carryValueForward(chosen_index,y); %If there are any Nan's replace them with the most recent decision made
@@ -265,7 +229,7 @@ bad_trials = find(isnan(u(1,:)));
 winning_trials = find((b.stim_ACC==1)' & ~ismember(1:n_t,bad_trials-1));
 losing_trials = find((b.stim_ACC==0)' & ~ismember(1:n_t,bad_trials-1));
 
-%Seperate the hidden states
+%Separate the hidden states
 choices = out.suffStat.muX(1:3,:);
 delta = out.suffStat.muX(4,:);
 
@@ -392,15 +356,7 @@ out.suffStat.loss_stay_10_prob = length(intersect(out.suffStat.loss_10_trials,ou
 out.suffStat.loss_stay_25_prob = length(intersect(out.suffStat.loss_25_trials,out.suffStat.stay_trials))./length(out.suffStat.loss_25_trials);
 out.suffStat.loss_stay_50_prob = length(intersect(out.suffStat.loss_50_trials,out.suffStat.stay_trials))./length(out.suffStat.loss_50_trials);
 
-
-
-%Old - incorrect
-% out.suffStat.stay_10_prob = sum(out.suffStat.stay_10)./length(out.suffStat.rew10_trials);
-% out.suffStat.stay_25_prob = sum(out.suffStat.stay_25)./length(out.suffStat.rew25_trials);
-% out.suffStat.stay_50_prob = sum(out.suffStat.stay_50)./length(out.suffStat.rew50_trials);
-% out.suffStat.diff_10_50_prob = out.suffStat.stay_10_prob - out.suffStat.stay_50_prob;
-
-if save_results
+if save_results==1
     if fix_all_params
         file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_first_fixed_params',id,use_reward_vec);
         file_path = 'vba_output/fixed_params';
