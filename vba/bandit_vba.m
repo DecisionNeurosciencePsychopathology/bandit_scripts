@@ -357,13 +357,22 @@ out.suffStat.loss_stay_25_prob = length(intersect(out.suffStat.loss_25_trials,ou
 out.suffStat.loss_stay_50_prob = length(intersect(out.suffStat.loss_50_trials,out.suffStat.stay_trials))./length(out.suffStat.loss_50_trials);
 
 if save_results==1
+    %create name for saving output based on model inputs and date
+    model_string='';
+    if valence; model_string=strcat(model_string,'valence_'); end
+    if utility; model_string=strcat(model_string,'utility_'); end
+    if disappointment; model_string=strcat(model_string,'disappointment_'); end
+    if regret; model_string=strcat(model_string,'regret_'); end
+    if fix_decay; model_string=strcat(model_string,'fixedDecay_'); end
+    if use_reward_vec; model_string=strcat(model_string,'rewardVec_'); end
+    model_string=strcat(model_string,date,'_');
     if fix_all_params
-        file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_first_fixed_params',id,use_reward_vec);
+        file_name = sprintf('id_%d_bandit_vba_output_fixed_params_',id);
         file_path = 'vba_output/fixed_params';
-        file_str = [file_path filesep file_name];
+        file_str = [file_path filesep file_name model_string];
     else
-        file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec',id,use_reward_vec);
-        file_str = [file_path filesep file_name];
+        file_name = sprintf('id_%d_bandit_vba_output_',id);
+        file_str = [file_path filesep file_name model_string];
     end
     save(file_str,'posterior', 'out', 'b')
 end

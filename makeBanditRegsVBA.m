@@ -98,6 +98,8 @@ for i = 1:length(dirs)
             
             %write the task data to file
             record_subj_to_file(id,task_data)
+        else
+            b_savename=strcat(num2str(id),'_b.mat');
         end
         
 %     catch exception

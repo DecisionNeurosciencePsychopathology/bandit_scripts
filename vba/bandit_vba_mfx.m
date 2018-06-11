@@ -425,18 +425,26 @@ end
 % out.suffStat.PE(win_index) = diff_of_muX(win_index)./alphaWin; %Handle wins
 % out.suffStat.PE(~win_index) = diff_of_muX(~win_index)./alphaLoss; %Handle losses
 
-
-% if save_results
-%     if fix_all_params
-%         file_name = sprintf('id_%d_bandit_vba_output_%d_rewVec_first_fixed_params',id,use_reward_vec);
-%         file_path = 'vba_output/fixed_params';
-%         file_str = [file_path filesep file_name];
-%     else
-%         file_name = sprintf('all_bandit_vba_output_%d_rewVec',use_reward_vec);
-%         file_str = [file_path filesep file_name];
-%     end
-%     save(file_str,'posterior', 'out', 'b')
-% end
+if save_results
+    %create name for saving output based on model inputs and date
+    model_string='';
+    if valence; model_string=strcat(model_string,'valence_'); end
+    if utility; model_string=strcat(model_string,'utility_'); end
+    if disappointment; model_string=strcat(model_string,'disappointment_'); end
+    if regret; model_string=strcat(model_string,'regret_'); end
+    if fix_decay; model_string=strcat(model_string,'fixedDecay_'); end
+    if use_reward_vec; model_string=strcat(model_string,'rewardVec_'); end
+    model_string=strcat(model_string,date,'_');
+    if fix_all_params
+        file_name = 'all_bandit_vba_output_fixed_params_';
+        file_path = 'vba_output/fixed_params';
+        file_str = [file_path filesep file_name model_string];
+    else
+        file_name = 'all_bandit_vba_output_';
+        file_str = [file_path filesep file_name model_string];
+    end
+    save(file_str,'posterior_group','posterior_sub', 'out_group','out_sub', 'b')
+end
 
 function x=shiftMe(x)
 %Shift the reg data by 1 to the left
