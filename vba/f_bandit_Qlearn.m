@@ -14,13 +14,13 @@ function  [fx] = f_bandit_Qlearn(x,theta,u,in)
 %   and evolution parameter, respectively.
 
 %Reward
-r = u(2); % when subjects chooses correctly reward is 1 unless we use the reward vector, which then the input is rew magnitude
+r = u(2); % when subjects choose correctly reward is 1 unless we use the reward vector, which then the input is rew magnitude
 stake = u(3); %stake if use_reward_vec = 1
 
 if in.fixed_params %Fixed paramteres
     theta(1) = 0.176093991469957; %alpha_win
     theta(2) = -0.625165021117312; %alpha_loss
-    theta(3) = 0.627873168355044; %decay
+    theta(3) = 0.627873168355044; %lambda
 end
 
 
@@ -28,24 +28,24 @@ if in.fix_decay %This is the fixed version
 %if in.decay %This logic is somewhat confusing... leave for relic vba data for now
     alpha_win = 1./(1+exp(-theta(1))); % learning rate is bounded between 0 and 1.
     alpha_loss = 1./(1+exp(-theta(2))); % learning rate is bounded between 0 and 1.
-    decay=0.5;
+    lambda=1; %  AD: we fixed this at 1 (no lambda) to respond to R4 comments on the behavioral bandit paper
 elseif in.valence && ~in.disappointment
     %Params
     alpha_win = 1./(1+exp(-theta(1))); % learning rate is bounded between 0 and 1.
     alpha_loss = 1./(1+exp(-theta(2))); % learning rate is bounded between 0 and 1.
-    decay = 1./(1+exp(-theta(3))); % decay is bounded between 0 and 1.
-    % loss_decay = 1./(1+exp(-theta(3))); % learning rate is bounded between 0 and 1.
-    % win_decay = 1./(1+exp(-theta(4))); % learning rate is bounded between 0 and 1.
+    lambda = 1./(1+exp(-theta(3))); % lambda is bounded between 0 and 1.
+    % loss_lambda = 1./(1+exp(-theta(3))); % learning rate is bounded between 0 and 1.
+    % win_lambda = 1./(1+exp(-theta(4))); % learning rate is bounded between 0 and 1.
 elseif in.valence && in.disappointment
     %Params
     alpha_win = 1./(1+exp(-theta(1))); % learning rate is bounded between 0 and 1.
     alpha_loss = 1./(1+exp(-theta(2))); % learning rate is bounded between 0 and 1.
-    decay = 1./(1+exp(-theta(3))); % decay is bounded between 0 and 1.
-    omega = 1./(1+exp(-theta(4))); % decay is bounded between 0 and 1.
+    lambda = 1./(1+exp(-theta(3))); % lambda is bounded between 0 and 1.
+    omega = 1./(1+exp(-theta(4))); % lambda is bounded between 0 and 1.
 else
     alpha_win = 1./(1+exp(-theta(1))); % learning rate is bounded between 0 and 1.
     alpha_loss = alpha_win;
-    decay = 1./(1+exp(-theta(2))); % decay is bounded between 0 and 1.
+    lambda = 1./(1+exp(-theta(2))); % lambda is bounded between 0 and 1.
 end
 
 %Additional steepness to parameterize reward magnitude
@@ -75,10 +75,10 @@ delta = r-x(choice); % prediction error
 %Update
 if u(2)>0
     fx(update_index) = x(update_index) + alpha_win*(delta);
-    fx(~update_index) = decay*x(~update_index);
+    fx(~update_index) = lambda*x(~update_index);
 else
     fx(update_index) = x(update_index) + alpha_loss*(delta);
-    fx(~update_index) = decay*x(~update_index);
+    fx(~update_index) = lambda*x(~update_index);
 end
 
 fx(4) = delta;
@@ -103,18 +103,18 @@ fx(4) = delta;
 % if s.feed(ct)>0
 %         if s.choice(ct)==1
 %             e1(ct+1)=e1(ct)+ AlphaWin.*(r(ct)-e1(ct));
-%             e2(ct+1)=LossDecay.*e2(ct);%-(e1(ct)-e1(ct-1))/2;
-%             e3(ct+1)=LossDecay.*e3(ct);%-(e1(ct)-e1(ct-1))/2;
+%             e2(ct+1)=Losslambda.*e2(ct);%-(e1(ct)-e1(ct-1))/2;
+%             e3(ct+1)=Losslambda.*e3(ct);%-(e1(ct)-e1(ct-1))/2;
 %             delta(ct)=r(ct)-e1(ct);
 %         elseif s.choice(ct)==2
 %             e2(ct+1)=e2(ct)+ AlphaWin.*(r(ct)-e2(ct));
-%             e1(ct+1)=LossDecay.*e1(ct);%-(e2(ct)-e2(ct))/2;
-%             e3(ct+1)=LossDecay.*e3(ct);%-(e2(ct)-e2(ct))/2;
+%             e1(ct+1)=Losslambda.*e1(ct);%-(e2(ct)-e2(ct))/2;
+%             e3(ct+1)=Losslambda.*e3(ct);%-(e2(ct)-e2(ct))/2;
 %             delta(ct)=r(ct)-e2(ct);
 %         elseif s.choice(ct)==3
 %             e3(ct+1)=e3(ct)+ AlphaWin.*(r(ct)-e3(ct));
-%             e1(ct+1)=LossDecay.*e1(ct);%-(e3(ct)-e3(ct))/2;
-%             e2(ct+1)=LossDecay.*e2(ct);%-(e3(ct)-e3(ct))/2;
+%             e1(ct+1)=Losslambda.*e1(ct);%-(e3(ct)-e3(ct))/2;
+%             e2(ct+1)=Losslambda.*e2(ct);%-(e3(ct)-e3(ct))/2;
 %             delta(ct)=r(ct)-e3(ct);
 %         elseif s.choice(ct)==999 %meaning a no-response trial
 %             e1(ct+1)=e1(ct);
@@ -127,18 +127,18 @@ fx(4) = delta;
 %     elseif s.feed(ct)==0
 %         if s.choice(ct)==1
 %             e1(ct+1)=e1(ct)+ AlphaLoss.*(r(ct)-e1(ct));
-%             e2(ct+1)=WinDecay.*e2(ct);%+(e1(ct)-e1(ct))/2;
-%             e3(ct+1)=WinDecay.*e3(ct);%+(e1(ct)-e1(ct))/2;
+%             e2(ct+1)=Winlambda.*e2(ct);%+(e1(ct)-e1(ct))/2;
+%             e3(ct+1)=Winlambda.*e3(ct);%+(e1(ct)-e1(ct))/2;
 %             delta(ct)=r(ct)-e1(ct);
 %         elseif s.choice(ct)==2
 %             e2(ct+1)=e2(ct)+ AlphaLoss.*(r(ct)-e2(ct));
-%             e1(ct+1)=WinDecay.*e1(ct);%+(e2(ct)-e2(ct))/2;
-%             e3(ct+1)=WinDecay.*e3(ct);%+(e2(ct)-e2(ct))/2;
+%             e1(ct+1)=Winlambda.*e1(ct);%+(e2(ct)-e2(ct))/2;
+%             e3(ct+1)=Winlambda.*e3(ct);%+(e2(ct)-e2(ct))/2;
 %             delta(ct)=r(ct)-e2(ct);
 %         elseif s.choice(ct)==3
 %             e3(ct+1)=e3(ct)+ AlphaLoss.*(r(ct)-e3(ct));
-%             e1(ct+1)=WinDecay.*e1(ct);%+(e3(ct)-e3(ct))/2;
-%             e2(ct+1)=WinDecay.*e2(ct);%+(e3(ct)-e3(ct-2))/2;
+%             e1(ct+1)=Winlambda.*e1(ct);%+(e3(ct)-e3(ct))/2;
+%             e2(ct+1)=Winlambda.*e2(ct);%+(e3(ct)-e3(ct-2))/2;
 %             delta(ct)=r(ct)-e3(ct);
 %         elseif s.choice(ct)==999 %meaning a no-response trial
 %             e1(ct+1)=e1(ct);

@@ -12,8 +12,6 @@ regret = parameterization.regret;
 fix_all_params = parameterization.fix_all_params ;
 use_reward_vec = parameterization.use_reward_vec;
 wsls = parameterization.wsls;
-null = parameterization.null;
-model = parameterization.model;
 
 %If we only want to use the first 150 trials
 use_first_150 = 0;
@@ -74,18 +72,8 @@ n_t = 300; %Total number of trials
 n_hidden_states = 4; %Track value for each arm of the bandit + PE
 
 if wsls
-    n_phi = 0;
-    n_theta = 0;
-    g_name = @g_bandit_wsls;
-    n_hidden_states = 0;
-end
+    n
 
-if null
-n_phi = 0;
-    n_theta = 0;
-    g_name = @g_bandit_null;
-    n_hidden_states = 0;
-end
 %% Fixed parameters		
  if fix_all_params				
      n_theta=0;		
@@ -387,7 +375,7 @@ if save_results==1
         file_path = 'vba_output/fixed_params';
         file_str = [file_path filesep file_name model_string];
     else
-        file_name = sprintf('%s_id_%d_bandit_vba_output_', model,id);
+        file_name = sprintf('id_%d_bandit_vba_output_',id);
         file_str = [file_path filesep file_name model_string];
     end
     save(file_str,'posterior', 'out', 'b')
