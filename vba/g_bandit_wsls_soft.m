@@ -1,4 +1,4 @@
-function  [ gx ] = g_bandit_wsls(x,P,u,in )
+function  [ gx ] = g_bandit_wsls_soft(x,P,u,in )
 % INPUT
 % - x : Q-values (2x1)
 % - P : inverse temperature (1x1)
@@ -6,7 +6,7 @@ function  [ gx ] = g_bandit_wsls(x,P,u,in )
 % - in : [useless]
 % OUTPUT
 % - gx : P(a=1|x)
-
+beta = exp(P(1));
 r = u(2);
 choice = u(1);
 p_choice = zeros(1,3);
@@ -20,6 +20,8 @@ else
     p_choice(~choice) = .5;
 end
 end
+p_choice = (exp((p_choice -max(p_choice ))/beta)) / (sum(exp((p_choice -max(p_choice ))/beta))); %Divide by temperature
+
 gx = p_choice;
 
 % dgdx = zeros(size(x,1),1);

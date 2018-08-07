@@ -30,4 +30,4 @@ for i = 1:length(p_sub)
     vba_mfx_df.beta_vba_mfx(i,1) = p_sub{i,1}.muPhi(1);
 end
 
-save('E:\data\bandit\vba_mfx\behav_vba_mfx_output_n_286_jan_8')
+%save('E:\data\bandit\vba_mfx\behav_vba_mfx_output_n_286_jan_8')

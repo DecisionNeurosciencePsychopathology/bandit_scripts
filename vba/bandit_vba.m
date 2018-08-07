@@ -1,4 +1,4 @@
-function [posterior,out,b] = bandit_vba(id,graphics,plot_subject,save_results,parameterization)
+function [posterior,out,b] = bandit_vba(datadir,id,graphics,plot_subject,save_results,parameterization)
 
 % fits BANDIT rl model to 3 armed bandit subject data using VBA toolbox
 %
@@ -12,6 +12,7 @@ regret = parameterization.regret;
 fix_all_params = parameterization.fix_all_params ;
 use_reward_vec = parameterization.use_reward_vec;
 wsls = parameterization.wsls;
+wsls_soft = parameterization.wsls_soft;
 null = parameterization.null;
 model = parameterization.model;
 
@@ -52,6 +53,8 @@ elseif valence && disappointment
 
 else
     n_theta = 2;
+    options.inF.valence = 0;
+    options.inF.disappointment= 0;
 end
 
 if utility
@@ -74,14 +77,23 @@ n_t = 300; %Total number of trials
 n_hidden_states = 4; %Track value for each arm of the bandit + PE
 
 if wsls
-    n_phi = 0;
+    n_phi = 1;
     n_theta = 0;
     g_name = @g_bandit_wsls;
     n_hidden_states = 0;
+    f_name = '';
+end
+
+if wsls_soft
+    n_phi = 1;
+    n_theta = 0;
+    g_name = @g_bandit_wsls_soft;
+    n_hidden_states = 0;
+    f_name = '';
 end
 
 if null
-n_phi = 0;
+n_phi = 1;
     n_theta = 0;
     g_name = @g_bandit_null;
     n_hidden_states = 0;
@@ -100,7 +112,7 @@ end
 
 %% Load in the subject's data
 %u is 2 x ntrials where first row is actions and second row is reward
-b = bandit_vba_read_in_data( 'id',id,'data_dir','subjects'); %REPLACE subjects with local dir
+b = bandit_vba_read_in_data( 'id',id,'data_dir',datadir); %REPLACE subjects with local dir
 b.id = id;
 censor = b.chosen_stim==999; %Censor some trials first
 subjects_actions = b.chosen_stim;
@@ -131,6 +143,8 @@ for i = 1:n_t
     end
 end
 
+
+options.id=id
 %% set up models within evolution/observation Fx
 options.inF.b = b;
 options.inG.b = b;
@@ -246,6 +260,7 @@ winning_trials = find((b.stim_ACC==1)' & ~ismember(1:n_t,bad_trials-1));
 losing_trials = find((b.stim_ACC==0)' & ~ismember(1:n_t,bad_trials-1));
 
 %Separate the hidden states
+if ~isempty(out.suffStat.muX)
 choices = out.suffStat.muX(1:3,:);
 delta = out.suffStat.muX(4,:);
 
@@ -257,6 +272,7 @@ out.suffStat.delta = shiftMe(delta);
 %proper length
 muX_diff = [diff(choices,1,2) zeros(size(choices,1),1)];
 PEunsigned = max(abs(muX_diff));
+
 %PEunsigned = [PEunsigned 0]; %Tack on zero to the end?
 PEplus = zeros(1,length(b.stim_ACC));
 PEminus = zeros(1,length(b.stim_ACC));
@@ -310,7 +326,7 @@ out.suffStat.value_not_chosen=shiftMe(out.suffStat.value_not_chosen);
 %out.suffStat.value_chosen(1) = 0; %This is a NAN since 0/0
 
 %Standardize the PEChosen and ValueChosenDiff regs
-
+end
 %zscore is only in stat toolbox?
 try
 out.suffStat.value_chosen_diff_standardized = ...
