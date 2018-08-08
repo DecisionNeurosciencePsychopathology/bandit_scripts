@@ -23,7 +23,7 @@ run_MFX=1;
 
 % write model loop
 
-%models = {'null', 'wsls', 'wsls_soft','1lr_decay', '2lr_decay', '2lr_no_decay'};
+%models = {'null', 'wsls_soft','1lr_decay', '2lr_decay', '2lr_no_decay'};
 models = {'1lr_decay', '2lr_decay', '2lr_no_decay'};
 %models = {'null'};
 
