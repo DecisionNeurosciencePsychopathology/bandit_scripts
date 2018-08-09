@@ -18,6 +18,7 @@ use_reward_vec = parameterization.use_reward_vec;
 wsls = parameterization.wsls;
 wsls_soft = parameterization.wsls_soft;
 null = parameterization.null;
+sticky = parameterization.sticky;
 model = parameterization.model;
 
 %If we only want to use the first 150 trials
@@ -64,6 +65,8 @@ if utility
     options.inF.utility = 1;
 end
 
+
+
 if fix_decay
     n_theta = n_theta-1;
     options.inF.fix_decay = 1;
@@ -78,6 +81,10 @@ n_t = 300; %Total number of trials
 % n_runs = 3; %3 blocks total
 n_hidden_states = 4; %Track value for each arm of the bandit + PE
 
+if sticky
+    n_phi = n_phi + 1;
+    options.inG.autocorrelation = 1;
+end
 
 if wsls
     n_phi = 1;
@@ -193,6 +200,8 @@ end
          
          all_options{i}.binomial = 1;
          
+         %Do Priors too.
+         all_options{i}.priors=priors;
          % split into conditions/runs
          % if multisession %improves fits moderately
          %     options.multisession.split = repmat(n_t/n_runs,1,n_runs); % three runs of 100 datapoints each
@@ -255,7 +264,7 @@ end
          
          
          % set up dim defaults- may not need to do this again
-         
+         all_options{i}.inG.autocorrelation = 0;
          
          if utility
              n_theta = n_theta +1; %Add in steepness parameter
@@ -268,6 +277,11 @@ end
          else
              all_options{i}.inF.fix_decay = 0;
          end
+         if sticky
+             n_phi = n_phi + 1;
+             all_options{i}.inG.autocorrelation = 1;            
+         end
+         
      catch
      end
  end

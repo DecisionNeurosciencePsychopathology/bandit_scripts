@@ -23,9 +23,10 @@ run_MFX=1;
 
 % write model loop
 
-%models = {'null', 'wsls_soft','1lr_decay', '2lr_decay', '2lr_no_decay'};
-models = {'1lr_decay', '2lr_decay', '2lr_no_decay'};
-%models = {'null'};
+%models = {'null', 'wsls_soft','1lr_decay', '2lr_decay', '2lr_no_decay','2lr_decay_sticky'};
+models = {'1lr_decay', '2lr_decay', '2lr_no_decay','2lr_decay_sticky'};
+%models = {'1lr_decay', '2lr_decay', '2lr_no_decay', '2lr_decay_sticky'};
+%models = {'2lr_decay_sticky'};
 
 for m = 1:length(models)
     
@@ -49,6 +50,7 @@ for m = 1:length(models)
     parameterization.wsls = 0;
     parameterization.null = 0;
     parameterization.wsls_soft = 0;
+    parameterization.sticky = 0;
     
     if strcmp(model,'null')
         parameterization.null = 1;
@@ -70,6 +72,14 @@ for m = 1:length(models)
     elseif strcmp(model,'2lr_no_decay')
         parameterization.valence=1;
         parameterization.fix_decay=1;
+        
+    elseif strcmp(model,'2lr_decay_sticky')
+        parameterization.valence=1;
+        parameterization.fix_decay=1;
+        parameterization.sticky = 1;
+
+        
+        
         
         %else
         %    parameterization.valence=1;
@@ -94,11 +104,11 @@ for m = 1:length(models)
         mkdir(file_path)
         file_name = sprintf('bandit_vba_MFX_output_%s',char(modelx));
         file_str = fullfile(file_path,file_name);
-        save(char(file_str),'posterior_sub', 'out_sub', 'posterior_group','out_group','b','parameterization')
+        save(char(file_str),'posterior_sub', 'out_sub', 'posterior_group','out_group','b','parameterization');
         
     else
 
-        parfor i = 4:length(dirs)
+        for i = 4:length(dirs)
             try
                 if  dirs(i).bytes <=0
                     id=str2double(dirs(i).name);
@@ -127,6 +137,10 @@ for m = 1:length(models)
 end
 
 
+%Now do group BMC;
+
+[posterior,out,p] = bandit_grp_BMC('~/Box Sync/skinner/data/eprime/bandit',run_MFX,1,1);
+
 % % for i = 1:length(fMRI_ids_to_run_vba_on)
 % %         try
 % %             id=fMRI_ids_to_run_vba_on(i);
@@ -148,4 +162,4 @@ end
 
 
 %Close up anything that's stil open
-%fclose all;
+fclose all;

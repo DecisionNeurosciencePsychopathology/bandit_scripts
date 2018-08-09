@@ -11,10 +11,22 @@ if in.fixed_params %Fixed paramteres
     P =  -1.353624512501712; %beta
 end
 
-beta = exp(P);
+beta = exp(P(1));
 
 x = x(1:3);
 
+
+if in.autocorrelation
+    chi = 1./(1+exp(-P(2)));
+    choice = u(1);
+    if ~isnan(choice)
+    choices = [1;2;3];
+    update_index = choices==choice;
+    x(update_index) = x(update_index) + chi;
+    end
+end
+
+    
 p_choice = (exp((x-max(x))/beta)) / (sum(exp((x-max(x))/beta))); %Divide by temperature
 gx = p_choice;
 

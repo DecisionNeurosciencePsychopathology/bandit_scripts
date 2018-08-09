@@ -1,6 +1,6 @@
 
 function [posterior,out,p] = bandit_grp_BMC(DataDir,isMFX,savefile,doBetweenGroup,MFXFolderName,noMFXFolderName,MFXFileName,BetweenGroupFile)
-debug=0;
+debug=1;
 if debug
     DataDir = '~/Box Sync/skinner/data/eprime/bandit';
     isMFX = 1;
@@ -59,30 +59,30 @@ else
     
 end
 
-if isMFX
-    TypeN=MFXFolderName;
-    Models=dir(fullfile(DataDir,TypeN));
-    Models=Models(~[Models.isdir]);
-    TypeK=fullfile(TypeN,'model_evidence');
+if isMFX 
+   TypeN=MFXFolderName;
+   Models=dir(fullfile(DataDir,TypeN));
+   Models=Models(~[Models.isdir]);
+   TypeK=fullfile(TypeN,'model_evidence');
 else
-    TypeN = noMFXFolderName;
-    Models=dir(fullfile(DataDir,TypeN));
-    Models=Models(3:length(Models));
-    Models=Models([Models.isdir]);
-    TypeK=TypeN;
+   TypeN = noMFXFolderName;
+   Models=dir(fullfile(DataDir,TypeN));
+   Models=Models(3:length(Models));
+   Models=Models([Models.isdir]);
+   TypeK=TypeN;
 end
 
-if doBetweenGroup
-    map = csvread(BetweenGroupFile,2);
-    %c1 is ID, c2 is G_5, c3 is G_7
-    [~,index]=unique(map(:,1));
-    map=map(index,:);
-end
+if doBetweenGroup 
+map = csvread(BetweenGroupFile,2);
+%c1 is ID, c2 is G_5, c3 is G_7
+[~,index]=unique(map(:,1));
+map=map(index,:);
+end 
 
 Models=Models(~strcmp('.DS_Store',{Models.name}));
 AllSubOutput = struct();
 AllL=struct();
-for x = 1:length(Models)
+for x = 1:length(Models) 
     Model = Models(x);
     if isMFX
         load(fullfile(Model.folder,Model.name));
@@ -116,7 +116,7 @@ for x = 1:length(Models)
     end
     BanditL(x,:) = AllL.(['L_' char(Model.name)]).F;
     if doBetweenGroup
-        GroupX(x,:) = map(find(ismember(map(:,1),AllL.(['L_' char(Model.name)]).ID)),2);
+    GroupX(x,:) = map(find(ismember(map(:,1),AllL.(['L_' char(Model.name)]).ID)),2);
     end
 end
 
@@ -131,37 +131,35 @@ mkdir(file_path);
 mkdir(g_path);
 options.modelNames = {Models.name};
 [posterior,out] = VBA_groupBMC(BanditL,options);
-AllGrpOut.overall=out;
-AllGrpPos.overall=posterior;
 saveas(gcf,fullfile(g_path,'group_overall.png'));
-
 if doBetweenGroup
-    Fe=out.F(end);
-    for z = 1:length(unique(GroupX(1,:)))
-        %Pos=findgroups(TempTable.Var1);
-        zkl = unique(GroupX(1,:));
-        zk = zkl(z);
-        GroupL = BanditL(:,GroupX(1,:)==zk);
-        options.modelNames = {Models.name};
-        [posterior,out] = VBA_groupBMC(GroupL,options);
-        %GroupsL{z}=GroupL;
-        AllGrpOut.(sprintf('group_%d',zk))=out;
-        AllGrpPos.(sprintf('group_%d',zk))=posterior;
-        GroupF(z)=out.F(end);
-        %[handles] = VBA_displayGroupBMC(posterior,out);
-        saveas(gcf,fullfile(g_path,sprintf('group_%d.png',zk)));
-    end
-    Fd = sum(GroupF);
-    p = 1/(1+exp(Fd-Fe));
-    out=AllGrpOut;
-    posterior=AllGrpPos;
-else
-    p = [];
+Fe=out.F(end);
+for z = 1:length(unique(GroupX(1,:)))
+    %Pos=findgroups(TempTable.Var1);
+    zkl = unique(GroupX(1,:));
+    zk = zkl(z);
+    GroupL = BanditL(:,GroupX(1,:)==zk);
+    options.modelNames = {Models.name};
+    [posterior,out] = VBA_groupBMC(GroupL,options);
+    %GroupsL{z}=GroupL;
+    AllGrpOut.(sprintf('group_%d',zk))=out;
+    AllGrpPos.(sprintf('group_%d',zk))=posterior;
+    GroupF(z)=out.F(end);
+    %[handles] = VBA_displayGroupBMC(posterior,out);
+    saveas(gcf,fullfile(g_path,sprintf('group_%d.png',zk)));
+end
+Fd = sum(GroupF);
+p = 1/(1+exp(Fd-Fe)); 
+out=AllGrpOut;
+posterior=AllGrpPos;
+tag='
+else 
+p = [];
 end
 
-if savefile
-    file_name = sprintf('bandit_vba_model_evidence_%d_models',length(Models));
-    file_str = fullfile(file_path,file_name);
-    save(char(file_str),'posterior', 'out','p')
+if savefile 
+file_name = sprintf('bandit_vba_model_evidence_%d_models',length(Models));
+file_str = fullfile(file_path,file_name);
+save(char(file_str),'posterior', 'out','p')
 end
-end
+end 

@@ -15,7 +15,10 @@ wsls = parameterization.wsls;
 wsls_soft = parameterization.wsls_soft;
 null = parameterization.null;
 model = parameterization.model;
+sticky = parameterization.sticky;
 
+
+options.inG.autocorrelation = 0;
 %If we only want to use the first 150 trials
 use_first_150 = 0;
 
@@ -75,6 +78,11 @@ g_name = @g_bandit_softmax; %Observation function
 n_t = 300; %Total number of trials
 % n_runs = 3; %3 blocks total
 n_hidden_states = 4; %Track value for each arm of the bandit + PE
+
+if sticky
+    n_phi = n_phi + 1;
+    options.inG.autocorrelation = 1;
+end 
 
 if wsls
     n_phi = 1;
