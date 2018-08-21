@@ -128,9 +128,9 @@ return(alldata)
 }
 
 alldata<-list(
-zeronoise=getprocdata('/Users/jiazhouchen/Box Sync/skinner/data/eprime/bandit/vba_pseudosub/data/2lr_decay/0/csvoutput'),
-onenoise=getprocdata('/Users/jiazhouchen/Box Sync/skinner/data/eprime/bandit/vba_pseudosub/data/2lr_decay/0.2/csvoutput'),
-twonoise=getprocdata('/Users/jiazhouchen/Box Sync/skinner/data/eprime/bandit/vba_pseudosub/data/2lr_decay/0.4/csvoutput')
+zeronoise=getprocdata(file.path(boxidir,'skinner','data','eprime','bandit','vba_pseudosub','data','2lr_decay','0','csvoutput')),
+onenoise=getprocdata(file.path(boxidir,'skinner','data','eprime','bandit','vba_pseudosub','data','2lr_decay','0.2','csvoutput')),
+twonoise=getprocdata(file.path(boxidir,'skinner','data','eprime','bandit','vba_pseudosub','data','2lr_decay','0.4','csvoutput'))
 )
 adata<-lapply(alldata,function(xk) {
 do.call(rbind,lapply(xk,function(x){
@@ -146,16 +146,6 @@ cleanorg<-original[c(1:4,6)]
 alldata_com_w_para<-merge(alldata_com,cleanorg,all = T)
 
 bdf<-alldata_com_w_para
-
-
-#########################################################
-##############END OF DATA PRE-PROC ######################
-#########################################################
-
-##############bdf is the data that has info on trial level 
-##############joint_reshape is the data that info on subject level
-
-
 
 library(tidyr)
 library(tibble)
@@ -183,22 +173,33 @@ bdf$stay_lag <- as.factor(bdf$stay_lag)
 bdf$trial_scaled <- scale(bdf$Trial)
 bdf$trial_scaled <- bdf$trial_scaled[,1]
 
+
+bdf$NOISE<-plyr::mapvalues(bdf$NOISE,c(0,0.2,0.4),c("No Noise","20% Noise","40% Noise"))
+joint_reshape$NOISE<-plyr::mapvalues(joint_reshape$NOISE,c(0,0.2,0.4),c("No Noise","20% Noise","40% Noise"))
+
+write.csv(bdf,'NOISE_LONG_bandit_vba_pseudosub_w_actual_recovered_value.csv')
+wdf<-reshape(data = bdf,timevar = 'NOISE',direction = 'wide',idvar = c('ID','Trial'),sep = "_")
+write.csv(wdf,'NOISE_WIDE_bandit_vba_pseudosub_w_actual_recovered_value.csv')
+
 stop("Here we done with preproc")
+
+
+#########################################################
+##############END OF DATA PRE-PROC ######################
+#########################################################
+
+##############bdf is the data that has info on trial level 
+##############joint_reshape is the data that info on subject level
+
+
+
 ###################################
 m1 <- lm(data=joint_reshape,formula = muPhi.pseudo ~ muPhi.original * muTheta_1.original * muTheta_2.original * muTheta_3.original * NOISE)
 summary(m1)
 
-
-
-
-summary(lm(data = joint_reshape[joint_reshape$NOISE=='0',],formula = muTheta_1.pseudo ~ muTheta_1.original))
-summary(lm(data = joint_reshape[joint_reshape$NOISE=='0.2',],formula = muTheta_1.pseudo ~ muTheta_1.original))
-summary(lm(data = joint_reshape[joint_reshape$NOISE=='0.4',],formula = muTheta_1.pseudo ~ muTheta_1.original))
-
-
-
-
-
+summary(lm(data = joint_reshape[joint_reshape$NOISE=="No Noise",],formula = muTheta_1.pseudo ~ muTheta_1.original))
+summary(lm(data = joint_reshape[joint_reshape$NOISE=="20% Noise",],formula = muTheta_1.pseudo ~ muTheta_1.original))
+summary(lm(data = joint_reshape[joint_reshape$NOISE=="40% Noise",],formula = muTheta_1.pseudo ~ muTheta_1.original))
 
 ##############################
 
@@ -243,16 +244,6 @@ car::Anova(mr2, type = 'III')
 
 summary(lmer(data = bdf,formula = ))
 
-
-
-write.csv(bdf,'NOISE_LONG_bandit_vba_pseudosub_w_actual_recovered_value.csv')
-wdf<-reshape(data = bdf,timevar = 'NOISE',direction = 'wide',idvar = c('ID','Trial'),sep = "_")
-write.csv(wdf,'NOISE_WIDE_bandit_vba_pseudosub_w_actual_recovered_value.csv')
-
-
-bdf$NOISE<-plyr::mapvalues(bdf$NOISE,c(0,0.2,0.4),c("No Noise","20% Noise","40% Noise"))
-joint_reshape$NOISE<-plyr::mapvalues(joint_reshape$NOISE,c(0,0.2,0.4),c("No Noise","20% Noise","40% Noise"))
-
 # look at beta recovery by level of noise
 
 summary(lm(data = joint_reshape[joint_reshape$NOISE=='No Noise',],formula = muPhi.pseudo ~ muPhi.original))
@@ -264,10 +255,10 @@ summary(lm(data = joint_reshape[joint_reshape$NOISE=="40% Noise",],formula = muP
 summary(vm1 <- lme4::lmer(value_max_actual ~ value_max_recover + (1|ID), bdf[bdf$NOISE=='No Noise',]))
 summary(vm0 <- lm(value_max_actual ~ value_max_recover, bdf[bdf$NOISE=='No Noise',]))
 
-summary(vm1 <- lme4::lmer(value_max_actual ~ value_max_recover + (1|ID/NOISE), bdf[bdf$NOISE=="20% Noise",]))
+summary(vm1 <- lme4::lmer(value_max_actual ~ value_max_recover + (1|ID), bdf[bdf$NOISE=="20% Noise",]))
 summary(vm0 <- lm(value_max_actual ~ value_max_recover, bdf[bdf$NOISE=="20% Noise",]))
 
-summary(vm1 <- lme4::lmer(value_max_actual ~ value_max_recover + (1|ID/NOISE), bdf[bdf$NOISE=="40% Noise",]))
+summary(vm1 <- lme4::lmer(value_max_actual ~ value_max_recover + (1|ID), bdf[bdf$NOISE=="40% Noise",]))
 summary(vm0 <- lm(value_max_actual ~ value_max_recover, bdf[bdf$NOISE=="40% Noise",]))
 
 
