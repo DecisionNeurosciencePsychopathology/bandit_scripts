@@ -1,10 +1,7 @@
 %Handle dir paths
-datadir='~/Box Sync/skinner/data/eprime/bandit';
-%
-dirs=dir(datadir);
-
-dirs=dirs(3:length(dirs));
-dirs=dirs([dirs.isdir]);
+clear
+rootdir='~/Box Sync/skinner/data/eprime/bandit';
+dirs=dir(rootdir);
 
 addpath('vba/')
 addpath('behav_scripts/')
@@ -15,7 +12,8 @@ end
 
 %Run MFX instead of ssub?
 run_MFX=1;
-
+run_withPseudoSub=1;
+injectNoise = 0.0;
 %Loading in the subjects that still need processed
 % load('fMRI_ids_to_run_vba_on.mat')
 
@@ -24,9 +22,12 @@ run_MFX=1;
 % write model loop
 
 %models = {'null', 'wsls_soft','1lr_decay', '2lr_decay', '2lr_no_decay','2lr_decay_sticky'};
-models = {'1lr_decay', '2lr_decay', '2lr_no_decay','2lr_decay_sticky'};
+%models = {'1lr_decay', '2lr_decay', '2lr_no_decay','2lr_decay_sticky'};
 %models = {'1lr_decay', '2lr_decay', '2lr_no_decay', '2lr_decay_sticky'};
-%models = {'2lr_decay_sticky'};
+models = {'2lr_decay'};
+
+
+
 
 for m = 1:length(models)
     
@@ -34,9 +35,9 @@ for m = 1:length(models)
     modelx=models(m);
     parameterization.model = model;
     %Set up input arguements
-    graphics = 1;
+    graphics = 0;
     s_graphics=0;
-    g_graphics=1;
+    g_graphics=0;
     plot_subject=0;
     save_results=0;
     
@@ -51,6 +52,7 @@ for m = 1:length(models)
     parameterization.null = 0;
     parameterization.wsls_soft = 0;
     parameterization.sticky = 0;
+    parameterization.runPseudo=run_withPseudoSub;
     
     if strcmp(model,'null')
         parameterization.null = 1;
@@ -93,10 +95,20 @@ for m = 1:length(models)
         %    parameterization.null = 0;
         %    parameterization.wsls_soft = 0;
     end
-    
+    if run_withPseudoSub
+        datadir=fullfile(rootdir,'vba_pseudosub','data',char(model),num2str(injectNoise));
+        dirs=dir(datadir);
+        run_MFX=1;
+        parameterization.runPseudo=1;
+        model = [char(model) '_wpseudosub'];
+    else
+        datadir=rootdir;
+        dirs=dirs([dirs.isdir]);
+    end
     
     if run_MFX
-        
+        dirs=dirs(3:length(dirs));
+        dirs=dirs(~strcmp('.DS_Store',{dirs.name}));
         [posterior_sub,out_sub,posterior_group,out_group,b] = bandit_vba_mfx(datadir,dirs,g_graphics,s_graphics,plot_subject,save_results,parameterization);
         
         %Output
@@ -107,7 +119,7 @@ for m = 1:length(models)
         save(char(file_str),'posterior_sub', 'out_sub', 'posterior_group','out_group','b','parameterization');
         
     else
-
+        
         for i = 4:length(dirs)
             try
                 if  dirs(i).bytes <=0
@@ -121,7 +133,6 @@ for m = 1:length(models)
                     %HOT fix for VB new model
                     file_path = fullfile(datadir,"vba_output",char(modelx));
                     mkdir(file_path)
-                    file_name = sprintf('id_%d_bandit_vba_output_%s',id,char(modelx));
                     file_str = fullfile(file_path,file_name);
                     save(char(file_str),'posterior', 'out', 'b', 'parameterization')
              
@@ -138,9 +149,9 @@ end
 
 
 %Now do group BMC;
-
-[posterior,out,p] = bandit_grp_BMC('~/Box Sync/skinner/data/eprime/bandit',run_MFX,1,1);
-
+if ~run_withPseudoSub
+    [posterior,out,p] = bandit_grp_BMC('~/Box Sync/skinner/data/eprime/bandit',run_MFX,1,1);
+end
 % % for i = 1:length(fMRI_ids_to_run_vba_on)
 % %         try
 % %             id=fMRI_ids_to_run_vba_on(i);

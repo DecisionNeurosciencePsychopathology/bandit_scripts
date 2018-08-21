@@ -20,6 +20,7 @@ wsls_soft = parameterization.wsls_soft;
 null = parameterization.null;
 sticky = parameterization.sticky;
 model = parameterization.model;
+runPseudo = parameterization.runPseudo;
 
 %If we only want to use the first 150 trials
 use_first_150 = 0;
@@ -140,6 +141,8 @@ end
  %priors.SigmaPhi = diag([1,1,1]);
  priors.SigmaPhi = 1e1*eye(dim.n_phi);
  priors.SigmaX0 = 0*eye(dim.n);
+ priors.a_vX0 = repmat(Inf, [1, n_phi*n_hidden_states]); %use infinite precision prior on gamma for X0 to treat as fixed (a = Inf; b = 0)
+ priors.b_vX0 = repmat(0, [1, n_phi*n_hidden_states]); %These will ensure that we have muX0 fixated on 0
  priors.a_alpha = Inf;
  priors.b_alpha = 0;
  priors.a_sigma = 1;     % Jeffreys prior
@@ -155,12 +158,17 @@ end
  % Loop through subjects
  for i = 1:length(dirs)
      try
-         id=str2double(dirs(i).name);
-         
-         % Load in the subject's data
-         %u is 2 x ntrials where first row is actions and second row is reward
-         b{i} = bandit_vba_read_in_data( 'id',id,'data_dir',rootdir); %REPLACE subjects with local dir
-         b{i}.id = id;
+         if ~runPseudo
+             id=str2double(dirs(i).name);
+             % Load in the subject's data
+             %u is 2 x ntrials where first row is actions and second row is reward
+             b{i} = bandit_vba_read_in_data( 'id',id,'data_dir',rootdir); %REPLACE subjects with local dir
+             b{i}.id = id;
+         else
+             [a]=load(fullfile(dirs(i).folder,dirs(i).name));
+             b{i} = a.bx;
+             id=a.bx.id;
+         end
          censor = b{i}.chosen_stim==999; %Censor some trials first
          subjects_actions = b{i}.chosen_stim;
          subjects_actions(censor)=nan;
@@ -168,9 +176,11 @@ end
          if use_reward_vec
              all_u{i}(2,:) = b{i}.rewardVec; %Reward has actual value [10 25 50]
              all_u{i}(3,:) = b{i}.stakeVec; %Stake
+             all_options{i}.inF.use_reward_vec = 1;
          else
              all_u{i}(2,:) = b{i}.stim_ACC; %Reward or not [1 0]
              all_u{i}(3,:) = NaN;
+             all_options{i}.inF.use_reward_vec = 0;
          end
          all_u{i} = [zeros(size(all_u{i},1),1) all_u{i}(:,1:end-1)]; %Shift the u!
          
@@ -293,7 +303,7 @@ end
  save('temp')
  
  % Run the vba model
- [posterior_sub,out_sub,posterior_group,out_group] = VBA_MFX_PAR(all_y_use,all_u_use,f_name,g_name,dim,all_options_use,priors,options); %VBA_MFX(y,u,f_fname,g_fname,dim,options,priors_group, options_group)
+ [posterior_sub,out_sub,posterior_group,out_group] = VBA_MFX_parallel(all_y_use,all_u_use,f_name,g_name,dim,all_options_use,priors,options); %VBA_MFX(y,u,f_fname,g_fname,dim,options,priors_group, options_group)
  
 
  for i = 1:length(out_sub)
