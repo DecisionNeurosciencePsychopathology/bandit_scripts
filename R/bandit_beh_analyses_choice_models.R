@@ -19,8 +19,6 @@ library(reshape2)
 library(ggbiplot)
 library(corrplot)
 library(lsmeans)
-library(factoextra)
-library(ggfortify)
 library(compareGroups)
 library(RColorBrewer)
 library(MASS)
@@ -32,7 +30,12 @@ library(multcompView)
 library(stargazer)
 library(psych)
 
-load(file = "bandit1.RData")
+# now contains a larger sample after additional data entry in the Summer of 2018:
+# load(file = "bandit1.RData")
+
+# original BP sample:
+load("bandit2choice.RData")
+
 
 # instead of rerunning:
 #  load(file = "bandit2choice.RData")

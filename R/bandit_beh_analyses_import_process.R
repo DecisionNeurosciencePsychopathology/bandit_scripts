@@ -20,7 +20,7 @@ library(compareGroups)
 # library(RColorBrewer)
 library(MASS)
 library(effects)
-library(readr)
+library(readxl)
 library(VIM)
 library(mice)
 library(multcompView)
@@ -38,22 +38,48 @@ sub_df <-
 #View(sub_df)
 sub_df = sub_df %>% as_tibble %>% arrange(ID)
 
-# note -- missing lethality on 221298, from Michelle: I’m cc’ing Alex since Jon also asked me about this last week, and I want to double check what I think the lethality rating would be. Pt reports that she was intubated s/p OD at a UPMC hospital, but there are no records; and this is just noted per pt report in her WPIC records. My guess at lethality would be 7, but there is no record verifying this.
-# thus
-sub_df$ID[sub_df$group12467==5]
-sub_df$max_lethality[sub_df$ID==221298] <- 7
-sub_df$group12467[sub_df$ID==221298] <- 7
+# read in new demographics from Josh as of 08/2018
+# this adds 4 healthy controls
+
+# newdemo <- read_excel("08-22-18 ALEX FINAL.xlsx")
+# newdemo = newdemo %>% as_tibble %>% arrange(ID)
+# newdemo$recent_attempt6mo <- as.factor(newdemo$`BL MR ATTEMPT DURATION`<180)
+# newdemo$group_recent <- as.numeric(newdemo$recent_attempt6mo)+7
+# newdemo$group_recent[newdemo$GROUP1245!=5] = newdemo$GROUP1245[newdemo$GROUP1245!=5]
+# newdemo$group_recent <- as.factor(newdemo$group_recent)
+# newdemo$group_recent <-
+#   dplyr::recode(
+#     newdemo$group_recent,
+#     `1` = "Controls",
+#     `2` = "Depressed",
+#     `4` = "Ideators",
+#     `8` = "Remote Attempters",
+#     `9` = "Recent Attempters"
+#   )
+# contrasts(newdemo$group_recent) <- contr.treatment(levels(newdemo$group_recent),
+#                                         base = which(levels(newdemo$group_recent) == 'Recent Attempters'))
+# 
+# 
+# sub_df <- merge(sub_df,newdemo, by = "ID")
 
 
-# there were also three subjects concurrently enrolled in bSocial with missing group variable, check below:
-sub_df$ID[sub_df$group12467==0]
-sub_df$max_lethality[sub_df$group12467==0]
-# code them from attempt lethality ratings
-sub_df$group1245[sub_df$group12467==0] <- 5
-sub_df$group12467[sub_df$max_lethality>0 & sub_df$max_lethality<4] <- 6
-sub_df$group12467[sub_df$max_lethality>3] <- 7
+## the manual additions below should no longer be necessary after complete data were entered
 
-
+# # note -- missing lethality on 221298, from Michelle: I’m cc’ing Alex since Jon also asked me about this last week, and I want to double check what I think the lethality rating would be. Pt reports that she was intubated s/p OD at a UPMC hospital, but there are no records; and this is just noted per pt report in her WPIC records. My guess at lethality would be 7, but there is no record verifying this.
+# # thus
+# sub_df$ID[sub_df$group12467==5]
+# sub_df$max_lethality[sub_df$ID==221298] <- 7
+# sub_df$group12467[sub_df$ID==221298] <- 7
+# 
+# # there were also three subjects concurrently enrolled in bSocial with missing group variable, check below:
+# sub_df$ID[sub_df$group12467==0]
+# sub_df$max_lethality[sub_df$group12467==0]
+# # code them from attempt lethality ratings
+# sub_df$group1245[sub_df$group12467==0] <- 5
+# sub_df$group12467[sub_df$max_lethality>0 & sub_df$max_lethality<4] <- 6
+# sub_df$group12467[sub_df$max_lethality>3] <- 7
+# 
+sub_df$recent_attempt6mo <- as.factor(sub_df$`BL MR ATTEMPT DURATION`<180)
 
 sub_df$group1245 <- as.factor(sub_df$group1245)
 sub_df$group12467 <- as.factor(sub_df$group12467)
@@ -87,11 +113,11 @@ missing_ind_chars = aggr(
 
 # all missingness <8%, could impute
 
-sub_df[,c(7:9,33:40)] <- lapply(sub_df[,c(7:9,33:40)], factor)
+sub_df[,c(7:9,33:41,97,102:103,107,109)] <- lapply(sub_df[,c(7:9,33:41,97,102:103,107,109)], factor)
 
 
 # sample characteristics: looks reasonable
-chars <- as.data.frame(sub_df[!sub_df$bad, c(10:15,20:31,33:40,73:75)])
+chars <- as.data.frame(sub_df[!sub_df$bad, c(10:15,20:31,33:41,73:75,85:87,115)])
 c1 <-
   compareGroups(
     chars,
@@ -111,6 +137,23 @@ t1 <-
     ,show.p.mul = TRUE
   )
 export2html(t1, "t_bandit_beh_scan_by_group.html")
+
+# 
+# c1a <-
+#   compareGroups(
+#     chars,
+#     y = c1$group12467,
+#     bivar = TRUE,
+#     include.miss = FALSE
+#   )
+# t1a <-
+#   createTable(c1a,
+#               hide.no = 0,
+#               digits = 1,
+#               show.n = TRUE) #, show.p.mul = TRUE)
+# export2html(t6, "age_equated_unique_beh_t_bandit_beh_by_group_leth.html")
+# 
+
 
 # coarse overview of behavior
 # hist(sub_df$spont_switch_err, breaks = 50)
@@ -407,6 +450,9 @@ beh_sub_df$STRENGTH_6MO[beh_sub_df$group1245 == 1] <-
 beh_sub_df$max_lethality[beh_sub_df$group1245 < 1] <-
   NA
 
+# beh_sub_df <- merge(beh_sub_df,newdemo)
+
+
 
 beh_sub_df[,32:39] <- lapply(beh_sub_df[,32:39], factor)
 
@@ -476,7 +522,7 @@ under50 <-
 c4 <-  beh_sub_df[!is.element(beh_sub_df$ID, repeaters) &
                !beh_sub_df$bad &
                !old_contr_depressed,]
-chars <- as.data.frame(c4[, c(10:15, 20:30, 33, 35, 37:40, 73,74)])
+chars <- as.data.frame(c4[, c(10:15, 20:30, 33, 35, 37:40, 73,74,100)])
 c4$Group <- factor(c4$Group, levels = c("Controls", "Depressed", "Ideators", "Attempters"))
 c5 <-
   compareGroups(
@@ -495,6 +541,21 @@ beh_sub_df$Group <- as.factor(beh_sub_df$Group)
 contrasts(beh_sub_df$Group) <-
   contr.treatment(levels(beh_sub_df$Group),
                   base = which(levels(beh_sub_df$Group) == 'Attempters'))
+# by lethality 
+c6 <-
+  compareGroups(
+    chars,
+    y = c4$group12467,
+    bivar = TRUE,
+    include.miss = FALSE
+  )
+t6 <-
+  createTable(c6,
+              hide.no = 0,
+              digits = 1,
+              show.n = TRUE) #, show.p.mul = TRUE)
+export2html(t6, "age_equated_unique_beh_t_bandit_beh_by_group_leth.html")
+
 
 # check missing
 missing_ind_chars = aggr(
@@ -862,30 +923,30 @@ contrasts(sdf$GroupLeth) <-
   contr.treatment(levels(sdf$GroupLeth),
                   base = which(levels(sdf$GroupLeth) == 'HL Attempters'))
 
-# check parameter stability for RL models: poor
-params1 <- beh_sub_df[,c(2,19,65:68)]
-params1 = params1 %>% as_tibble %>% arrange(ID)
-
-tmp <- sub_df[,c(2,19,65:68)]
-params2 = list()
-
-params2$ID <- tmp$ID
-params2$L2 <- tmp$L_vba_mfx
-params2$alpha_win2 <- tmp$alpha_win_mfx_data
-params2$alpha_loss2 <- tmp$alpha_loss_mfx_data
-params2$decay2 <- tmp$decay_mfx_data
-params2$beta2 <- tmp$beta_mfx_data
-params2 = params2 %>% as_tibble %>% arrange(ID)
-params <- merge(params1,params2)
-cormat <- psych::corr.test(params[,2:11], method = "spearman")
-pdf("bandit horror plot test retest params.pdf", width=14, height=14)
-
-corrplot(cormat$r, cl.lim=c(-1,1),
-         method = "circle", tl.cex = 1.5, type = "upper", tl.col = 'black',
-         diag = FALSE,
-         addCoef.col="black", addCoefasPercent = FALSE,
-         p.mat = cormat$p, sig.level=0.05, insig = "blank")
-dev.off()
+# # check parameter stability for RL models: poor
+# params1 <- beh_sub_df[,c(2,19,65:68)]
+# params1 = params1 %>% as_tibble %>% arrange(ID)
+# 
+# tmp <- sub_df[,c(2,19,65:68)]
+# params2 = list()
+# 
+# params2$ID <- tmp$ID
+# params2$L2 <- tmp$L_vba_mfx
+# params2$alpha_win2 <- tmp$alpha_win_mfx_data
+# params2$alpha_loss2 <- tmp$alpha_loss_mfx_data
+# params2$decay2 <- tmp$decay_mfx_data
+# params2$beta2 <- tmp$beta_mfx_data
+# params2 = params2 %>% as_tibble %>% arrange(ID)
+# params <- merge(params1,params2)
+# cormat <- psych::corr.test(params[,2:11], method = "spearman")
+# pdf("bandit horror plot test retest params.pdf", width=14, height=14)
+# 
+# corrplot(cormat$r, cl.lim=c(-1,1),
+#          method = "circle", tl.cex = 1.5, type = "upper", tl.col = 'black',
+#          diag = FALSE,
+#          addCoef.col="black", addCoefasPercent = FALSE,
+#          p.mat = cormat$p, sig.level=0.05, insig = "blank")
+# dev.off()
 
 # make merged df of the two behavioral samples
 rdf$sample <- '1'
@@ -903,4 +964,4 @@ contrasts(mdf$Group) <-
 
 
 
-save(list = ls(all.names = TRUE), file = "bandit1.RData")
+# save(list = ls(all.names = TRUE), file = "bandit1.RData")

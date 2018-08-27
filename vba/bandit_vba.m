@@ -100,6 +100,9 @@ end
 
 %% Load in the subject's data
 %u is 2 x ntrials where first row is actions and second row is reward
+
+%% JUST LOAD THE DAMN b!!!!
+
 b = bandit_vba_read_in_data( 'id',id,'data_dir','subjects'); %REPLACE subjects with local dir
 b.id = id;
 censor = b.chosen_stim==999; %Censor some trials first
