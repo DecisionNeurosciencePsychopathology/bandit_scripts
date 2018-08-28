@@ -79,7 +79,7 @@ sub_df = sub_df %>% as_tibble %>% arrange(ID)
 # sub_df$group12467[sub_df$max_lethality>0 & sub_df$max_lethality<4] <- 6
 # sub_df$group12467[sub_df$max_lethality>3] <- 7
 # 
-sub_df$recent_attempt6mo <- as.factor(sub_df$`BL MR ATTEMPT DURATION`<180)
+# sub_df$recent_attempt6mo <- as.factor(sub_df$`BL MR ATTEMPT DURATION`<180)
 
 sub_df$group1245 <- as.factor(sub_df$group1245)
 sub_df$group12467 <- as.factor(sub_df$group12467)
@@ -97,7 +97,7 @@ sub_df$max_lethality[sub_df$group1245 < 1] <-
 # AD checked on final sample of N=127 01/18/18
 sub_df$bad <- NA
 sub_df$bad <- sub_df$ID == 206270 | sub_df$ID == 210100
-
+sub_df$SSI_baseline <- sub_df$`BASELINE SSI`
 table(sub_df$bad, sub_df$group1245)
 # check missing data
 missing_ind_chars = aggr(
@@ -113,15 +113,27 @@ missing_ind_chars = aggr(
 
 # all missingness <8%, could impute
 
-sub_df[,c(7:9,33:41,97,102:103,107,109)] <- lapply(sub_df[,c(7:9,33:41,97,102:103,107,109)], factor)
+# sub_df[,c(7:9,33:41,97,102:103,107,109)] <- lapply(sub_df[,c(7:9,33:41,97,102:103,107,109)], factor)
+sub_df[,c(7:9,33:41)] <- lapply(sub_df[,c(7:9,33:41)], factor)
+
+sub_df$Group <-
+  dplyr::recode(
+    sub_df$group1245,
+    `1` = "Controls",
+    `2` = "Depressed",
+    `4` = "Ideators",
+    `5` = "Attempters"
+  )
 
 
 # sample characteristics: looks reasonable
-chars <- as.data.frame(sub_df[!sub_df$bad, c(10:15,20:31,33:41,73:75,85:87,115)])
+# chars <- as.data.frame(sub_df[!sub_df$bad, c(10:15,20:31,33:41,73:75,85:87,115)])
+chars <- as.data.frame(sub_df[!sub_df$bad, c(10:15,20:31,33:41,73:75,85:87)])
+
 c1 <-
   compareGroups(
     chars,
-    y = sub_df$group1245[!sub_df$bad],
+    y = sub_df$Group[!sub_df$bad],
     bivar = TRUE,
     include.miss = FALSE
   )
@@ -137,6 +149,28 @@ t1 <-
     ,show.p.mul = TRUE
   )
 export2html(t1, "t_bandit_beh_scan_by_group.html")
+
+# parameter table
+params22 <- as.data.frame(sub_df[!sub_df$bad,c("alpha_win_mfx_data","alpha_loss_mfx_data", "decay_mfx_data", "beta_mfx_data", "L_vba_mfx")])
+p22 <-
+  compareGroups(
+    params22,
+    y = sub_df$Group[!sub_df$bad],
+    bivar = TRUE,
+    include.miss = FALSE
+  )
+pt22 <-
+  createTable(
+    p22,
+    # hide = c(sex = "FEMALE", list(race = c(
+    #   "WHITE", "ASIAN PACIFIC"
+    # ))),
+    hide.no = 0,
+    digits = 1,
+    show.n = TRUE
+    ,show.p.mul = TRUE
+  )
+export2html(pt22, "bandit_22_params.html")
 
 # 
 # c1a <-
@@ -274,7 +308,7 @@ bdf = bdf %>% arrange(ID, Trial) %>% group_by(ID) %>%
 # 
 
 lag_test <- bdf[,c(1:3,121,36,124,125,38,128,129)]
-View(lag_test)
+# View(lag_test)
 
 # scale within subject
 scale_this <- function(x) as.vector(scale(x))
@@ -353,6 +387,7 @@ bdf$v_ch_diff <- bdf$v_chosen_lag_mfx - bdf$v_max_lag_mfx
 bdf$v_ch_diff_lag <- bdf$v_chosen_lag2_mfx - bdf$v_max_lag2_mfx
 
 # bdf$v_ch_logr <- log(bdf$v_chosen_lag_mfx_mc/bdf$v_max_lag_mfx)
+bdf$SSI_baseline <- as.numeric(bdf$`BASELINE SSI`)
 
 # exclude subjects who pressed one button repeatedly
 gdf <- bdf[!bdf$bad,]
@@ -449,7 +484,7 @@ beh_sub_df$STRENGTH_6MO[beh_sub_df$group1245 == 1] <-
   NA
 beh_sub_df$max_lethality[beh_sub_df$group1245 < 1] <-
   NA
-
+beh_sub_df$SSI_baseline <- beh_sub_df$`BASELINE SSI`
 # beh_sub_df <- merge(beh_sub_df,newdemo)
 
 
@@ -522,7 +557,8 @@ under50 <-
 c4 <-  beh_sub_df[!is.element(beh_sub_df$ID, repeaters) &
                !beh_sub_df$bad &
                !old_contr_depressed,]
-chars <- as.data.frame(c4[, c(10:15, 20:30, 33, 35, 37:40, 73,74,100)])
+# chars <- as.data.frame(c4[, c(10:15, 20:30, 33, 35, 37:40, 73,74,100)])
+chars <- as.data.frame(c4[, c(10:15, 20:30, 33, 35, 37:40, 73,74,84)])
 c4$Group <- factor(c4$Group, levels = c("Controls", "Depressed", "Ideators", "Attempters"))
 c5 <-
   compareGroups(
@@ -559,15 +595,39 @@ export2html(t6, "age_equated_unique_beh_t_bandit_beh_by_group_leth.html")
 
 # check missing
 missing_ind_chars = aggr(
-  c4[,c(1:4,6:64)],
+  chars,
   col = mdc(1:2),
   numbers = TRUE,
   sortVars = TRUE,
-  labels = names(c4),
+  labels = names(chars),
   cex.axis = .7,
   gap = 3,
   ylab = c("Proportion of missingness", "Missingness Pattern")
 )
+
+
+
+params11 <- as.data.frame(c4[,c("alpha_win_mfx_data","alpha_loss_mfx_data", "decay_mfx_data", "beta_mfx_data", "L_vba_mfx")])
+p1 <-
+  compareGroups(
+    params11,
+    y = c4$Group,
+    bivar = TRUE,
+    include.miss = FALSE
+  )
+pt1 <-
+  createTable(
+    p1,
+    # hide = c(sex = "FEMALE", list(race = c(
+    #   "WHITE", "ASIAN PACIFIC"
+    # ))),
+    hide.no = 0,
+    digits = 1,
+    show.n = TRUE
+    ,show.p.mul = TRUE
+  )
+export2html(pt1, "bandit_11_params.html")
+
 
 # let's try the unique sample first
 rdf <- merge(beh_trial_df, c4)
@@ -706,7 +766,7 @@ rdf$v_ch_diff_lag <- rdf$v_chosen_lag2_mfx - rdf$v_max_lag2_mfx
 
 # make sure lags are correctly aligned
 lag_test <- rdf[,c(1:3,118,32,122,123,34,126,127)]
-View(lag_test)
+# View(lag_test)
 
 
 rdf$Group <-
@@ -765,6 +825,28 @@ missing_ind_chars = aggr(
   gap = 3,
   ylab = c("Proportion of missingness", "Missingness Pattern")
 )
+
+
+params21 <- as.data.frame(c9[,c("alpha_win_mfx_data","alpha_loss_mfx_data", "decay_mfx_data", "beta_mfx_data", "L_vba_mfx")])
+p21 <-
+  compareGroups(
+    params21,
+    y = c9$Group,
+    bivar = TRUE,
+    include.miss = FALSE
+  )
+pt21 <-
+  createTable(
+    p21,
+    # hide = c(sex = "FEMALE", list(race = c(
+    #   "WHITE", "ASIAN PACIFIC"
+    # ))),
+    hide.no = 0,
+    digits = 1,
+    show.n = TRUE
+    ,show.p.mul = TRUE
+  )
+export2html(pt21, "bandit_21_params.html")
 
 
 sdf <- merge(beh_trial_df, c9)
@@ -896,7 +978,7 @@ sdf$v_ch_diff_lag <- sdf$v_chosen_lag2_mfx - sdf$v_max_lag2_mfx
 
 # make sure lags are correctly aligned
 lag_test <- sdf[,c(1:3,118,32,122,123,34,126,127)]
-View(lag_test)
+# View(lag_test)
 
 
 sdf$Group <-
@@ -960,8 +1042,21 @@ contrasts(mdf$Group) <-
                   base = which(levels(mdf$Group) == 'Attempters'))
 
 
+rdf$SSI_baseline <- as.numeric(rdf$`BASELINE SSI`)
+sdf$SSI_baseline <- as.numeric(sdf$`BASELINE SSI`)
 
 
+
+upper <- 4000
+upper_gdf <- upper
+upper_rdf <- upper
+upper_sdf <- upper
+
+lower <- 200
+
+gdf_censored <- gdf[gdf$RT>lower & gdf$RT<upper_gdf & gdf$RT_lag>0,]
+rdf_censored <- rdf[rdf$RT>lower & rdf$RT<upper_rdf & rdf$RT_lag>0,]
+sdf_censored <- sdf[sdf$RT>lower & sdf$RT<upper_sdf & sdf$RT_lag>0,]
 
 
 # save(list = ls(all.names = TRUE), file = "bandit1.RData")

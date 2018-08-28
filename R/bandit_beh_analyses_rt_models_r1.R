@@ -35,10 +35,10 @@ library(ggpubr)
 theme_set(theme_sjplot())
 source('~/code/R/vif.lme.R')
 
-load(file = "bandit1.RData")
+# load(file = "bandit1.RData")
 
 # or to continue where I left off:
-# load(file = "bandit2rt.RData")
+ load(file = "bandit2rt.RData")
 
 
 
@@ -53,17 +53,6 @@ load(file = "bandit1.RData")
 # value_max -- max(v(t+1)), following r(t) and a(t)
 # v_chosen_lag -- value of a(t),  v(t)
 # v_chosen_lag_updated -- value of a(t) following r(t), v(a_t,t+1)
-
-upper <- 4000
-upper_gdf <- upper
-upper_rdf <- upper
-upper_sdf <- upper
-
-lower <- 200
-
-gdf_censored <- gdf[gdf$RT>lower & gdf$RT<upper_gdf & gdf$RT_lag>0,]
-rdf_censored <- rdf[rdf$RT>lower & rdf$RT<upper_rdf & rdf$RT_lag>0,]
-sdf_censored <- sdf[sdf$RT>lower & sdf$RT<upper_sdf & sdf$RT_lag>0,]
 
 
 #  Main analysis
@@ -401,6 +390,20 @@ stargazer(s11_rt_hrsd, s12_rt_hrsd, s22_rt_hrsd,  type="html", out="hrsd_rt_repl
           star.cutoffs = c(0.1, 0.05, 0.01, 0.001),
           notes = c("+ p<0.1; * p<0.05; ** p<0.01; *** p<0.001"), 
           notes.append = F)
+
+
+ssi <- ".~.+ scale(SSI_baseline)*v_max_lag_mfx + scale(SSI_baseline)*reinf_lag + scale(SSI_baseline)*abs(PE_chosen_vba_lag)"
+s11_rt_ssi <- update(s11_rt_dem, ssi, data = rdf_censored[rdf_censored$group1245!=1,])
+s12_rt_ssi <- update(s12_rt_dem, ssi)
+s22_rt_ssi <- update(s22_rt_dem, ssi)
+stargazer(s11_rt_ssi, s12_rt_ssi, s22_rt_ssi,  type="html", out="ssi_rt_replication.htm", digits = 3,single.row=TRUE,omit.stat = "bic",
+          column.labels = c("Study 1, sample 1", "Study 1, sample 2", "Study 2, sample 2"),
+          star.char = c("+", "*", "**", "***"),
+          star.cutoffs = c(0.1, 0.05, 0.01, 0.001),
+          notes = c("+ p<0.1; * p<0.05; ** p<0.01; *** p<0.001"), 
+          notes.append = F)
+
+
 
 # lethality analyses
 
