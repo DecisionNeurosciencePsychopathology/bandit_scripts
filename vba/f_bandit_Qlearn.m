@@ -15,7 +15,9 @@ function  [fx] = f_bandit_Qlearn(x,theta,u,in)
 
 %Reward
 r = u(2); % when subjects choose correctly reward is 1 unless we use the reward vector, which then the input is rew magnitude
+if in.use_reward_vec
 stake = u(3); %stake if use_reward_vec = 1
+end
 
 if in.fixed_params %Fixed paramteres
     theta(1) = 0.176093991469957; %alpha_win

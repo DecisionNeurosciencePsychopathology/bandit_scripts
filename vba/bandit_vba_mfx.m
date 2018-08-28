@@ -1,4 +1,4 @@
-function [posterior_sub,out_sub,posterior_group,out_group,b] = bandit_vba_mfx(dirs,graphics,plot_subject,save_results,parameterization)
+function [posterior_sub,out_sub,posterior_group,out_group,b] = bandit_vba_mfx(rootdir,dirs,g_graphics,s_graphics,plot_subject,save_results,parameterization)
 
 % fits BANDIT rl model to 3 armed bandit subject data using VBA toolbox
 % example call: %%%NEED TO FIX THIS
@@ -15,6 +15,12 @@ disappointment = parameterization.disappointment;
 regret = parameterization.regret;
 fix_all_params = parameterization.fix_all_params ;
 use_reward_vec = parameterization.use_reward_vec;
+wsls = parameterization.wsls;
+wsls_soft = parameterization.wsls_soft;
+null = parameterization.null;
+sticky = parameterization.sticky;
+model = parameterization.model;
+runPseudo = parameterization.runPseudo;
 
 %If we only want to use the first 150 trials
 use_first_150 = 0;
@@ -34,7 +40,7 @@ options.inF.valence = 0;
 options.inF.decay = 0;
 
 %Turn graphics on or off
-if ~graphics
+if ~g_graphics
     options.DisplayWin = 0;
     options.GnFigs = 0;
 end
@@ -51,12 +57,16 @@ elseif valence && disappointment
 
 else
     n_theta = 2;
+    options.inF.valence = 0;
+    options.inF.disappointment= 0;
 end
 
 if utility
     n_theta = n_theta +1; %Add in steepness parameter
     options.inF.utility = 1;
 end
+
+
 
 if fix_decay
     n_theta = n_theta-1;
@@ -71,6 +81,37 @@ g_name = @g_bandit_softmax; %Observation function
 n_t = 300; %Total number of trials
 % n_runs = 3; %3 blocks total
 n_hidden_states = 4; %Track value for each arm of the bandit + PE
+
+if sticky
+    n_phi = n_phi + 1;
+    options.inG.autocorrelation = 1;
+end
+
+if wsls
+    n_phi = 1;
+    n_theta = 0;
+    g_name = @g_bandit_wsls;
+    n_hidden_states = 0;
+    f_name = '';
+end
+
+if wsls_soft
+    n_phi = 1;
+    n_theta = 0;
+    g_name = @g_bandit_wsls_soft;
+    n_hidden_states = 0;
+    f_name = '';
+end
+
+if null
+n_phi = 1;
+    n_theta = 0;
+    g_name = @g_bandit_null;
+    n_hidden_states = 0;
+end
+
+
+
 
 % Fixed parameters		
  if fix_all_params				
@@ -100,6 +141,8 @@ n_hidden_states = 4; %Track value for each arm of the bandit + PE
  %priors.SigmaPhi = diag([1,1,1]);
  priors.SigmaPhi = 1e1*eye(dim.n_phi);
  priors.SigmaX0 = 0*eye(dim.n);
+ priors.a_vX0 = repmat(Inf, [1, n_phi*n_hidden_states]); %use infinite precision prior on gamma for X0 to treat as fixed (a = Inf; b = 0)
+ priors.b_vX0 = repmat(0, [1, n_phi*n_hidden_states]); %These will ensure that we have muX0 fixated on 0
  priors.a_alpha = Inf;
  priors.b_alpha = 0;
  priors.a_sigma = 1;     % Jeffreys prior
@@ -114,263 +157,293 @@ n_hidden_states = 4; %Track value for each arm of the bandit + PE
  
  % Loop through subjects
  for i = 1:length(dirs)
-     id=str2double(dirs(i).name);
-     
-     % Load in the subject's data
-     %u is 2 x ntrials where first row is actions and second row is reward
-     b{i} = bandit_vba_read_in_data( 'id',id,'data_dir','subjects'); %REPLACE subjects with local dir
-     b{i}.id = id;
-     censor = b{i}.chosen_stim==999; %Censor some trials first
-     subjects_actions = b{i}.chosen_stim;
-     subjects_actions(censor)=nan;
-     all_u{i}(1,:) = subjects_actions; %Chosen action [1 2 3]
-     if use_reward_vec
-         all_u{i}(2,:) = b{i}.rewardVec; %Reward has actual value [10 25 50]
-         all_u{i}(3,:) = b{i}.stakeVec; %Stake
-     else
-         all_u{i}(2,:) = b{i}.stim_ACC; %Reward or not [1 0]
-         all_u{i}(3,:) = NaN;
-     end
-     all_u{i} = [zeros(size(all_u{i},1),1) all_u{i}(:,1:end-1)]; %Shift the u!
-     
-     %Only use the first 150 trials
-     if use_first_150==1
-         n_t = n_t/2; %Should take care of the y
-         all_u{i} = all_u{i}(:,1:n_t);
-         censor = censor(1:n_t);
-     end
-     
-     all_y{i} = zeros(3, n_t);
-     for ii = 1:n_t
-         try
-             all_y{i}(subjects_actions(ii), ii) = 1;
-         catch
-             all_y{i}(:,ii) = nan;
+     try
+         if ~runPseudo
+             id=str2double(dirs(i).name);
+             % Load in the subject's data
+             %u is 2 x ntrials where first row is actions and second row is reward
+             b{i} = bandit_vba_read_in_data( 'id',id,'data_dir',rootdir); %REPLACE subjects with local dir
+             b{i}.id = id;
+         else
+             [a]=load(fullfile(dirs(i).folder,dirs(i).name));
+             b{i} = a.bx;
+             id=a.bx.id;
          end
-     end
-     
-     % set up models within evolution/observation Fx
-     all_options{i}.inF.b = b{i};
-     all_options{i}.inG.b = b{i};
-     
-     % skip first trial
-     all_options{i}.skipf = zeros(1,n_t);
-     all_options{i}.skipf(1) = 1;
-     
-     all_options{i}.binomial = 1;
-     
-     % split into conditions/runs
-     % if multisession %improves fits moderately
-     %     options.multisession.split = repmat(n_t/n_runs,1,n_runs); % three runs of 100 datapoints each
-     %     %% fix parameters
-     %     if fixed_params_across_runs
-     %         options.multisession.fixed.theta = 'all';
-     %         options.multisession.fixed.phi = 'all';
-     %         %
-     %         % allow unique initial values for each run?x
-     %         options.multisession.fixed.X0 = 'all';
-     %     end
-     %
-     % end
-     
-     % Last bit of option declarations
-     all_options{i}.TolFun = 1e-6;
-     all_options{i}.GnTolFun = 1e-6;
-     all_options{i}.verbose=1;
-     
-     %Censor any bad trials
-     all_options{i}.isYout = repmat(censor,1,3)';
-     all_options{i}.inF.Yout = all_options{i}.isYout;
-     
-     if fix_all_params
-         all_options{i}.inF.fixed_params=1;
-         all_options{i}.inG.fixed_params=1;
-     else
-         all_options{i}.inF.fixed_params=0;
-         all_options{i}.inG.fixed_params=0;
-     end
-     
-     %Evolution options- set as 0 and then overwrite below if indicated
-     all_options{i}.inF.utility = 0;
-     all_options{i}.inF.valence = 0;
-     all_options{i}.inF.decay = 0;
-     
-     
-     %Turn graphics on or off
-     if ~graphics
-         all_options{i}.DisplayWin = 0;
-         all_options{i}.GnFigs = 0;
-     end
-     % set up dim defaults- may not need to do this again
-     if valence && ~disappointment
-         n_theta = 3; %Number of evolution params (AlphaWin AlphaLoss Beta)
-         all_options{i}.inF.valence = 1;
-         all_options{i}.inF.disappointment= 0;
+         censor = b{i}.chosen_stim==999; %Censor some trials first
+         subjects_actions = b{i}.chosen_stim;
+         subjects_actions(censor)=nan;
+         all_u{i}(1,:) = subjects_actions; %Chosen action [1 2 3]
+         if use_reward_vec
+             all_u{i}(2,:) = b{i}.rewardVec; %Reward has actual value [10 25 50]
+             all_u{i}(3,:) = b{i}.stakeVec; %Stake
+             all_options{i}.inF.use_reward_vec = 1;
+         else
+             all_u{i}(2,:) = b{i}.stim_ACC; %Reward or not [1 0]
+             all_u{i}(3,:) = NaN;
+             all_options{i}.inF.use_reward_vec = 0;
+         end
+         all_u{i} = [zeros(size(all_u{i},1),1) all_u{i}(:,1:end-1)]; %Shift the u!
          
-     elseif valence && disappointment
-         n_theta = 4; %Number of evolution params (AlphaWin AlphaLoss Beta Diss)
-         all_options{i}.inF.valence = 1;
-         all_options{i}.inF.disappointment= 1;
+         %Only use the first 150 trials
+         if use_first_150==1
+             n_t = n_t/2; %Should take care of the y
+             all_u{i} = all_u{i}(:,1:n_t);
+             censor = censor(1:n_t);
+         end
          
-     else
-         n_theta = 2;
-     end
-     
-     if utility
-         n_theta = n_theta +1; %Add in steepness parameter
-         all_options{i}.inF.utility = 1;
-     end
-     
-     if fix_decay
-         n_theta = n_theta-1;
-         all_options{i}.inF.fix_decay = 1;
-     else
-         all_options{i}.inF.fix_decay = 0;
+         all_y{i} = zeros(3, n_t);
+         for ii = 1:n_t
+             try
+                 all_y{i}(subjects_actions(ii), ii) = 1;
+             catch
+                 all_y{i}(:,ii) = nan;
+             end
+         end
+         
+         % set up models within evolution/observation Fx
+         all_options{i}.inF.b = b{i};
+         all_options{i}.inG.b = b{i};
+         
+         % skip first trial
+         all_options{i}.skipf = zeros(1,n_t);
+         all_options{i}.skipf(1) = 1;
+         
+         all_options{i}.binomial = 1;
+         
+         %Do Priors too.
+         all_options{i}.priors=priors;
+         % split into conditions/runs
+         % if multisession %improves fits moderately
+         %     options.multisession.split = repmat(n_t/n_runs,1,n_runs); % three runs of 100 datapoints each
+         %     %% fix parameters
+         %     if fixed_params_across_runs
+         %         options.multisession.fixed.theta = 'all';
+         %         options.multisession.fixed.phi = 'all';
+         %         %
+         %         % allow unique initial values for each run?x
+         %         options.multisession.fixed.X0 = 'all';
+         %     end
+         %
+         % end
+         all_options{i}.id = id;
+         % Last bit of option declarations
+         all_options{i}.TolFun = 1e-6;
+         all_options{i}.GnTolFun = 1e-6;
+         all_options{i}.verbose=1;
+         
+         %Censor any bad trials
+         all_options{i}.isYout = repmat(censor,1,3)';
+         all_options{i}.inF.Yout = all_options{i}.isYout;
+         
+         if fix_all_params
+             all_options{i}.inF.fixed_params=1;
+             all_options{i}.inG.fixed_params=1;
+         else
+             all_options{i}.inF.fixed_params=0;
+             all_options{i}.inG.fixed_params=0;
+         end
+         
+         %Evolution options- set as 0 and then overwrite below if indicated
+         all_options{i}.inF.utility = 0;
+         all_options{i}.inF.valence = 0;
+         all_options{i}.inF.decay = 0;
+         
+         
+         %Turn graphics on or off
+         if ~s_graphics
+             all_options{i}.DisplayWin = 0;
+             all_options{i}.GnFigs = 0;
+         end
+         
+         
+         if valence && ~disappointment
+             n_theta = 3; %Number of evolution params (AlphaWin AlphaLoss Beta)
+             all_options{i}.inF.valence = 1;
+             all_options{i}.inF.disappointment= 0;
+             
+         elseif valence && disappointment
+             n_theta = 4; %Number of evolution params (AlphaWin AlphaLoss Beta Omega)
+             all_options{i}.inF.valence = 1;
+             all_options{i}.inF.disappointment= 0;
+             
+         else
+             n_theta = 2;
+             all_options{i}.inF.valence = 0;
+             all_options{i}.inF.disappointment= 0;
+         end
+         
+         
+         % set up dim defaults- may not need to do this again
+         all_options{i}.inG.autocorrelation = 0;
+         
+         if utility
+             n_theta = n_theta +1; %Add in steepness parameter
+             all_options{i}.inF.utility = 1;
+         end
+         
+         if fix_decay
+             n_theta = n_theta-1;
+             all_options{i}.inF.fix_decay = 1;
+         else
+             all_options{i}.inF.fix_decay = 0;
+         end
+         if sticky
+             n_phi = n_phi + 1;
+             all_options{i}.inG.autocorrelation = 1;            
+         end
+         
+     catch
      end
  end
  all_y_use=all_y(~cellfun('isempty',all_y));
  all_u_use=all_u(~cellfun('isempty',all_u));
  all_options_use=all_options(~cellfun('isempty',all_options));
+ %save as temp file so during test we dont have to re-do the processing all
+ %the time 
+ save('temp')
  
  % Run the vba model
- [posterior_sub,out_sub,posterior_group,out_group] = VBA_MFX(all_y_use,all_u_use,f_name,g_name,dim,all_options_use,priors,options); %VBA_MFX(y,u,f_fname,g_fname,dim,options,priors_group, options_group)
+ [posterior_sub,out_sub,posterior_group,out_group] = VBA_MFX_parallel(all_y_use,all_u_use,f_name,g_name,dim,all_options_use,priors,options); %VBA_MFX(y,u,f_fname,g_fname,dim,options,priors_group, options_group)
  
 
- for i = 1:length(dirs)
-     
-     %add ID #s to subject structures
-     out_sub{i}.id=all_options_use{i}.inF.b.id;
-     posterior_sub{i}.id=all_options_use{i}.inF.b.id;
-     
-     bad_trials = find(isnan(all_u_use{i}(1,:)));
-     winning_trials = find((b{i}.stim_ACC==1)' & ~ismember(1:n_t,bad_trials-1));
-     losing_trials = find((b{i}.stim_ACC==0)' & ~ismember(1:n_t,bad_trials-1));
-     
-     %Separate the hidden states
-     choices = out_sub{i}.suffStat.muX(1:3,:);
-     delta = out_sub{i}.suffStat.muX(4,:);
-     
-     %Shift PE Regressor if needed...
-     out_sub{i}.suffStat.delta = shiftMe(delta);
-     
-     %SHOULD THESE CHANGE?
-     %Values are shifted to the left add on as many zeros as needed to regain
-     %proper length
-     muX_diff = [diff(choices,1,2) zeros(size(choices,1),1)];
-     PEunsigned = max(abs(muX_diff));
-     %PEunsigned = [PEunsigned 0]; %Tack on zero to the end?
-     PEplus = zeros(1,length(b{i}.stim_ACC));
-     PEminus = zeros(1,length(b{i}.stim_ACC));
-     out_sub{i}.suffStat.PEchosen_pos = zeros(1,length(b{i}.stim_ACC));
-     out_sub{i}.suffStat.PEchosen_neg = zeros(1,length(b{i}.stim_ACC));
-     PEplus(winning_trials) = PEunsigned(winning_trials); %Good!
-     PEminus(losing_trials) = PEunsigned(losing_trials); %Out of bounds because losing trials contains index 300
-     out_sub{i}.suffStat.PEunsigned=PEunsigned;
-     out_sub{i}.suffStat.PEplus=PEplus;
-     out_sub{i}.suffStat.PEminus=PEminus;
-     out_sub{i}.suffStat.PEsigned=PEplus-PEminus;
-     %Grab the option they chose and remove any error codes
-     chosen_index = all_y_use{i};
-     chosen_index = carryValueForward(chosen_index,all_y_use{i}); %If there are any Nan's replace them with the most recent decision made
-     
-     %PEchosen is now the pe hidden state
-     %out_sub{i}.suffStat.PEchosen = muX_diff(logical(chosen_index))'; %PE of chosen choice
-     out_sub{i}.suffStat.PEchosen = out_sub{i}.suffStat.delta; %PE of chosen choice
-     out_sub{i}.suffStat.PEchosen_pos(out_sub{i}.suffStat.PEchosen>0) = out_sub{i}.suffStat.PEchosen(out_sub{i}.suffStat.PEchosen>0);
-     out_sub{i}.suffStat.PEchosen_neg(out_sub{i}.suffStat.PEchosen<0) = out_sub{i}.suffStat.PEchosen(out_sub{i}.suffStat.PEchosen<0);
-     
-     %Create Value regressors
-     out_sub{i}.suffStat.value = max(choices); %Max value of each hidden state per trial
-     out_sub{i}.suffStat.value_diff = out_sub{i}.suffStat.value - mean(choices);
-     out_sub{i}.suffStat.value_chosen = choices(logical(chosen_index))';
-     out_sub{i}.suffStat.value_not_chosen=choices(~logical(chosen_index))';
-     out_sub{i}.suffStat.value_not_chosen = reshape(out_sub{i}.suffStat.value_not_chosen,2,300);
-     not_chosen_sum=sum(out_sub{i}.suffStat.value_not_chosen); %Keep this var on ice for now
-     out_sub{i}.suffStat.value_chosen_diff = out_sub{i}.suffStat.value_chosen - mean(out_sub{i}.suffStat.value_not_chosen); %Do not shift this one!
-     
-     %Create different flavor of value difference regressor in which v(t+1) is
-     %indexed by chosen_index, (i.e. Vtplus1(chosen_index)) and subtracted by
-     %the mean(Vtplus1(~chosen_index)))
-     out_sub{i}.suffStat.vtplus1 = choices(:,2:end);
-     out_sub{i}.suffStat.vtplus1_not_chosen=out_sub{i}.suffStat.vtplus1(~logical(chosen_index(:,1:end-1)))';
-     out_sub{i}.suffStat.vtplus1_not_chosen = reshape(out_sub{i}.suffStat.vtplus1_not_chosen,2,length(out_sub{i}.suffStat.vtplus1));
-     out_sub{i}.suffStat.vtplus1_chosen_diff=[(out_sub{i}.suffStat.vtplus1(logical(chosen_index(:,1:end-1)))' - mean(out_sub{i}.suffStat.vtplus1_not_chosen)) 0];
-     
-     %Create a regrssor like vtplus1 but using the max subtracted by the median - V.B.
-     out_sub{i}.suffStat.vtplus1_max=[(max(out_sub{i}.suffStat.vtplus1) - median(out_sub{i}.suffStat.vtplus1)) 0];
-     
-     %Value chosen was normalized at one point?
-     %out_sub{i}.suffStat.value_chosen=out_sub{i}.suffStat.value_chosen./sum(choices);
-     
-     %Shift all the value regressors by 1
-     out_sub{i}.suffStat.value=shiftMe(out_sub{i}.suffStat.value);
-     out_sub{i}.suffStat.value_diff=shiftMe(out_sub{i}.suffStat.value_diff);
-     out_sub{i}.suffStat.value_chosen=shiftMe(out_sub{i}.suffStat.value_chosen);
-     out_sub{i}.suffStat.value_not_chosen=shiftMe(out_sub{i}.suffStat.value_not_chosen);
-     %out_sub{i}.suffStat.value_chosen=shiftMe(out_sub{i}.suffStat.value_chosen);
-     %out_sub{i}.suffStat.value_chosen(1) = 0; %This is a NAN since 0/0
-     
-     %Standardize the PEChosen and ValueChosenDiff regs
-     
-     %zscore is only in stat toolbox?
+ for i = 1:length(out_sub)
      try
-         out_sub{i}.suffStat.value_chosen_diff_standardized = ...
-             zscore(out_sub{i}.suffStat.value_chosen_diff);
-         out_sub{i}.suffStat.PEchosen_standardized = ...
-             zscore(out_sub{i}.suffStat.PEchosen);
+         if ~isempty(out_sub{i}.suffStat.muX)
+             %add ID #s to subject structures
+             out_sub{i}.id=all_options_use{i}.inF.b.id;
+             posterior_sub{i}.id=all_options_use{i}.inF.b.id;
+             
+             bad_trials = find(isnan(all_u_use{i}(1,:)));
+             winning_trials = find((b{i}.stim_ACC==1)' & ~ismember(1:n_t,bad_trials-1));
+             losing_trials = find((b{i}.stim_ACC==0)' & ~ismember(1:n_t,bad_trials-1));
+             
+             %Separate the hidden states
+             choices = out_sub{i}.suffStat.muX(1:3,:);
+             delta = out_sub{i}.suffStat.muX(4,:);
+             
+             %Shift PE Regressor if needed...
+             out_sub{i}.suffStat.delta = shiftMe(delta);
+             
+             %SHOULD THESE CHANGE?
+             %Values are shifted to the left add on as many zeros as needed to regain
+             %proper length
+             muX_diff = [diff(choices,1,2) zeros(size(choices,1),1)];
+             PEunsigned = max(abs(muX_diff));
+             %PEunsigned = [PEunsigned 0]; %Tack on zero to the end?
+             PEplus = zeros(1,length(b{i}.stim_ACC));
+             PEminus = zeros(1,length(b{i}.stim_ACC));
+             out_sub{i}.suffStat.PEchosen_pos = zeros(1,length(b{i}.stim_ACC));
+             out_sub{i}.suffStat.PEchosen_neg = zeros(1,length(b{i}.stim_ACC));
+             PEplus(winning_trials) = PEunsigned(winning_trials); %Good!
+             PEminus(losing_trials) = PEunsigned(losing_trials); %Out of bounds because losing trials contains index 300
+             out_sub{i}.suffStat.PEunsigned=PEunsigned;
+             out_sub{i}.suffStat.PEplus=PEplus;
+             out_sub{i}.suffStat.PEminus=PEminus;
+             out_sub{i}.suffStat.PEsigned=PEplus-PEminus;
+             %Grab the option they chose and remove any error codes
+             chosen_index = all_y_use{i};
+             chosen_index = carryValueForward(chosen_index,all_y_use{i}); %If there are any Nan's replace them with the most recent decision made
+             
+             %PEchosen is now the pe hidden state
+             %out_sub{i}.suffStat.PEchosen = muX_diff(logical(chosen_index))'; %PE of chosen choice
+             out_sub{i}.suffStat.PEchosen = out_sub{i}.suffStat.delta; %PE of chosen choice
+             out_sub{i}.suffStat.PEchosen_pos(out_sub{i}.suffStat.PEchosen>0) = out_sub{i}.suffStat.PEchosen(out_sub{i}.suffStat.PEchosen>0);
+             out_sub{i}.suffStat.PEchosen_neg(out_sub{i}.suffStat.PEchosen<0) = out_sub{i}.suffStat.PEchosen(out_sub{i}.suffStat.PEchosen<0);
+             
+             %Create Value regressors
+             out_sub{i}.suffStat.value = max(choices); %Max value of each hidden state per trial
+             out_sub{i}.suffStat.value_diff = out_sub{i}.suffStat.value - mean(choices);
+             out_sub{i}.suffStat.value_chosen = choices(logical(chosen_index))';
+             out_sub{i}.suffStat.value_not_chosen=choices(~logical(chosen_index))';
+             out_sub{i}.suffStat.value_not_chosen = reshape(out_sub{i}.suffStat.value_not_chosen,2,300);
+             not_chosen_sum=sum(out_sub{i}.suffStat.value_not_chosen); %Keep this var on ice for now
+             out_sub{i}.suffStat.value_chosen_diff = out_sub{i}.suffStat.value_chosen - mean(out_sub{i}.suffStat.value_not_chosen); %Do not shift this one!
+             
+             %Create different flavor of value difference regressor in which v(t+1) is
+             %indexed by chosen_index, (i.e. Vtplus1(chosen_index)) and subtracted by
+             %the mean(Vtplus1(~chosen_index)))
+             out_sub{i}.suffStat.vtplus1 = choices(:,2:end);
+             out_sub{i}.suffStat.vtplus1_not_chosen=out_sub{i}.suffStat.vtplus1(~logical(chosen_index(:,1:end-1)))';
+             out_sub{i}.suffStat.vtplus1_not_chosen = reshape(out_sub{i}.suffStat.vtplus1_not_chosen,2,length(out_sub{i}.suffStat.vtplus1));
+             out_sub{i}.suffStat.vtplus1_chosen_diff=[(out_sub{i}.suffStat.vtplus1(logical(chosen_index(:,1:end-1)))' - mean(out_sub{i}.suffStat.vtplus1_not_chosen)) 0];
+             
+             %Create a regrssor like vtplus1 but using the max subtracted by the median - V.B.
+             out_sub{i}.suffStat.vtplus1_max=[(max(out_sub{i}.suffStat.vtplus1) - median(out_sub{i}.suffStat.vtplus1)) 0];
+             
+             %Value chosen was normalized at one point?
+             %out_sub{i}.suffStat.value_chosen=out_sub{i}.suffStat.value_chosen./sum(choices);
+             
+             %Shift all the value regressors by 1
+             out_sub{i}.suffStat.value=shiftMe(out_sub{i}.suffStat.value);
+             out_sub{i}.suffStat.value_diff=shiftMe(out_sub{i}.suffStat.value_diff);
+             out_sub{i}.suffStat.value_chosen=shiftMe(out_sub{i}.suffStat.value_chosen);
+             out_sub{i}.suffStat.value_not_chosen=shiftMe(out_sub{i}.suffStat.value_not_chosen);
+             %out_sub{i}.suffStat.value_chosen=shiftMe(out_sub{i}.suffStat.value_chosen);
+             %out_sub{i}.suffStat.value_chosen(1) = 0; %This is a NAN since 0/0
+             
+             %Standardize the PEChosen and ValueChosenDiff regs
+             
+             %zscore is only in stat toolbox?
+             try
+                 out_sub{i}.suffStat.value_chosen_diff_standardized = ...
+                     zscore(out_sub{i}.suffStat.value_chosen_diff);
+                 out_sub{i}.suffStat.PEchosen_standardized = ...
+                     zscore(out_sub{i}.suffStat.PEchosen);
+             catch
+                 fprintf('Stat toolbox not found!\n\n')
+             end
+             
+             %Create reward stake and just stake align it with trialonset
+             out_sub{i}.suffStat.reward_stake = b{i}.rewardVec';
+             out_sub{i}.suffStat.reward_stake(b{i}.rewardVec==10)=1;
+             out_sub{i}.suffStat.reward_stake(b{i}.rewardVec==25)=2;
+             out_sub{i}.suffStat.reward_stake(b{i}.rewardVec==50)=3;
+             
+             %mean corrected rew mag
+             out_sub{i}.suffStat.reward_stake_mc = out_sub{i}.suffStat.reward_stake - mean(out_sub{i}.suffStat.reward_stake);
+             
+             %This is what they could have won per trial <- what we want for createing the probabilities
+             out_sub{i}.suffStat.stake = b{i}.stakeVec';
+             out_sub{i}.suffStat.stake(b{i}.stakeVec==10)=1;
+             out_sub{i}.suffStat.stake(b{i}.stakeVec==25)=2;
+             out_sub{i}.suffStat.stake(b{i}.stakeVec==50)=3;
+             
+             %Mean corrected stake regressor
+             out_sub{i}.suffStat.stake_mc = out_sub{i}.suffStat.stake - mean(out_sub{i}.suffStat.stake);
+             
+             
+             %Percentages of reward magnitude and staying
+             out_sub{i}.suffStat.mag10_trials = find(b{i}.stakeVec==10);
+             out_sub{i}.suffStat.mag25_trials = find(b{i}.stakeVec==25);
+             out_sub{i}.suffStat.mag50_trials = find(b{i}.stakeVec==50);
+             
+             %Determine number of trials with specific magnitude that were win/loss
+             out_sub{i}.suffStat.win_10_trials = intersect(winning_trials,out_sub{i}.suffStat.mag10_trials);
+             out_sub{i}.suffStat.win_25_trials = intersect(winning_trials,out_sub{i}.suffStat.mag25_trials);
+             out_sub{i}.suffStat.win_50_trials = intersect(winning_trials,out_sub{i}.suffStat.mag50_trials);
+             out_sub{i}.suffStat.loss_10_trials = intersect(losing_trials,out_sub{i}.suffStat.mag10_trials);
+             out_sub{i}.suffStat.loss_25_trials = intersect(losing_trials,out_sub{i}.suffStat.mag25_trials);
+             out_sub{i}.suffStat.loss_50_trials = intersect(losing_trials,out_sub{i}.suffStat.mag50_trials);
+             
+             %Find stay trials
+             error_code = 999; %If they missed a trial, ie don't want two zeros in a row to i...
+             out_sub{i}.suffStat.stay_trials  = find(logical([0; b{i}.chosen_stim(2:end)==b{i}.chosen_stim(1:end-1)]) & b{i}.chosen_stim~=error_code);
+             
+             %These aren;t really nedded but its good to have a breakdown...
+             out_sub{i}.suffStat.stay_10_trials = intersect(out_sub{i}.suffStat.stay_trials,out_sub{i}.suffStat.mag10_trials);
+             out_sub{i}.suffStat.stay_25_trials = intersect(out_sub{i}.suffStat.stay_trials,out_sub{i}.suffStat.mag25_trials);
+             out_sub{i}.suffStat.stay_50_trials = intersect(out_sub{i}.suffStat.stay_trials,out_sub{i}.suffStat.mag50_trials);
+             
+             %Stay prob example (number of win 10 rew mag trials which subj stayed / number of win 10 rew mag trials)
+             out_sub{i}.suffStat.win_stay_10_prob = length(intersect(out_sub{i}.suffStat.win_10_trials,out_sub{i}.suffStat.stay_trials))./length(out_sub{i}.suffStat.win_10_trials);
+             out_sub{i}.suffStat.win_stay_25_prob = length(intersect(out_sub{i}.suffStat.win_25_trials,out_sub{i}.suffStat.stay_trials))./length(out_sub{i}.suffStat.win_25_trials);
+             out_sub{i}.suffStat.win_stay_50_prob = length(intersect(out_sub{i}.suffStat.win_50_trials,out_sub{i}.suffStat.stay_trials))./length(out_sub{i}.suffStat.win_50_trials);
+             out_sub{i}.suffStat.loss_stay_10_prob = length(intersect(out_sub{i}.suffStat.loss_10_trials,out_sub{i}.suffStat.stay_trials))./length(out_sub{i}.suffStat.loss_10_trials);
+             out_sub{i}.suffStat.loss_stay_25_prob = length(intersect(out_sub{i}.suffStat.loss_25_trials,out_sub{i}.suffStat.stay_trials))./length(out_sub{i}.suffStat.loss_25_trials);
+             out_sub{i}.suffStat.loss_stay_50_prob = length(intersect(out_sub{i}.suffStat.loss_50_trials,out_sub{i}.suffStat.stay_trials))./length(out_sub{i}.suffStat.loss_50_trials);
+         end
      catch
-         fprintf('Stat toolbox not found!\n\n')
      end
-     
-     %Create reward stake and just stake align it with trialonset
-     out_sub{i}.suffStat.reward_stake = b{i}.rewardVec';
-     out_sub{i}.suffStat.reward_stake(b{i}.rewardVec==10)=1;
-     out_sub{i}.suffStat.reward_stake(b{i}.rewardVec==25)=2;
-     out_sub{i}.suffStat.reward_stake(b{i}.rewardVec==50)=3;
-     
-     %mean corrected rew mag
-     out_sub{i}.suffStat.reward_stake_mc = out_sub{i}.suffStat.reward_stake - mean(out_sub{i}.suffStat.reward_stake);
-     
-     %This is what they could have won per trial <- what we want for createing the probabilities
-     out_sub{i}.suffStat.stake = b{i}.stakeVec';
-     out_sub{i}.suffStat.stake(b{i}.stakeVec==10)=1;
-     out_sub{i}.suffStat.stake(b{i}.stakeVec==25)=2;
-     out_sub{i}.suffStat.stake(b{i}.stakeVec==50)=3;
-     
-     %Mean corrected stake regressor
-     out_sub{i}.suffStat.stake_mc = out_sub{i}.suffStat.stake - mean(out_sub{i}.suffStat.stake);
-     
-     
-     %Percentages of reward magnitude and staying
-     out_sub{i}.suffStat.mag10_trials = find(b{i}.stakeVec==10);
-     out_sub{i}.suffStat.mag25_trials = find(b{i}.stakeVec==25);
-     out_sub{i}.suffStat.mag50_trials = find(b{i}.stakeVec==50);
-     
-     %Determine number of trials with specific magnitude that were win/loss
-     out_sub{i}.suffStat.win_10_trials = intersect(winning_trials,out_sub{i}.suffStat.mag10_trials);
-     out_sub{i}.suffStat.win_25_trials = intersect(winning_trials,out_sub{i}.suffStat.mag25_trials);
-     out_sub{i}.suffStat.win_50_trials = intersect(winning_trials,out_sub{i}.suffStat.mag50_trials);
-     out_sub{i}.suffStat.loss_10_trials = intersect(losing_trials,out_sub{i}.suffStat.mag10_trials);
-     out_sub{i}.suffStat.loss_25_trials = intersect(losing_trials,out_sub{i}.suffStat.mag25_trials);
-     out_sub{i}.suffStat.loss_50_trials = intersect(losing_trials,out_sub{i}.suffStat.mag50_trials);
-     
-     %Find stay trials
-     error_code = 999; %If they missed a trial, ie don't want two zeros in a row to i...
-     out_sub{i}.suffStat.stay_trials  = find(logical([0; b{i}.chosen_stim(2:end)==b{i}.chosen_stim(1:end-1)]) & b{i}.chosen_stim~=error_code);
-     
-     %These aren;t really nedded but its good to have a breakdown...
-     out_sub{i}.suffStat.stay_10_trials = intersect(out_sub{i}.suffStat.stay_trials,out_sub{i}.suffStat.mag10_trials);
-     out_sub{i}.suffStat.stay_25_trials = intersect(out_sub{i}.suffStat.stay_trials,out_sub{i}.suffStat.mag25_trials);
-     out_sub{i}.suffStat.stay_50_trials = intersect(out_sub{i}.suffStat.stay_trials,out_sub{i}.suffStat.mag50_trials);
-     
-     %Stay prob example (number of win 10 rew mag trials which subj stayed / number of win 10 rew mag trials)
-     out_sub{i}.suffStat.win_stay_10_prob = length(intersect(out_sub{i}.suffStat.win_10_trials,out_sub{i}.suffStat.stay_trials))./length(out_sub{i}.suffStat.win_10_trials);
-     out_sub{i}.suffStat.win_stay_25_prob = length(intersect(out_sub{i}.suffStat.win_25_trials,out_sub{i}.suffStat.stay_trials))./length(out_sub{i}.suffStat.win_25_trials);
-     out_sub{i}.suffStat.win_stay_50_prob = length(intersect(out_sub{i}.suffStat.win_50_trials,out_sub{i}.suffStat.stay_trials))./length(out_sub{i}.suffStat.win_50_trials);
-     out_sub{i}.suffStat.loss_stay_10_prob = length(intersect(out_sub{i}.suffStat.loss_10_trials,out_sub{i}.suffStat.stay_trials))./length(out_sub{i}.suffStat.loss_10_trials);
-     out_sub{i}.suffStat.loss_stay_25_prob = length(intersect(out_sub{i}.suffStat.loss_25_trials,out_sub{i}.suffStat.stay_trials))./length(out_sub{i}.suffStat.loss_25_trials);
-     out_sub{i}.suffStat.loss_stay_50_prob = length(intersect(out_sub{i}.suffStat.loss_50_trials,out_sub{i}.suffStat.stay_trials))./length(out_sub{i}.suffStat.loss_50_trials);
-     
  end
 
 %Plot the subjects choices if needed %NEEDS FIXING

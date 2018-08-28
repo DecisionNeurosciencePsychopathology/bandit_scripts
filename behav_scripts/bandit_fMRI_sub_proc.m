@@ -126,6 +126,9 @@ out.counts_to_first_C = countTrialsToStim(out.stim_choice(151:end),'C');
 %Save b struct in out
 out.b=b;
 
+
+mkdir("subjects")
+
 % save individual file
 save(sprintf('subjects/%d.mat',id),'out');
 

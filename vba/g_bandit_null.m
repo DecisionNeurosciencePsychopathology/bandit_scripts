@@ -1,4 +1,4 @@
-function  [ gx ] = g_bandit_null()
+function  [ gx ] = g_bandit_null(x, P, u, in)
 % INPUT
 % - x : Q-values (2x1)
 % - P : inverse temperature (1x1)
