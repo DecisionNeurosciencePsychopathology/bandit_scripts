@@ -1,5 +1,5 @@
 #Read in VBA posteriors;
-
+source('~/code/R/vif.lme.R')
 #####
 findbox<-function() {
   if (Sys.getenv("USER")=="jiazhouchen") {boxdir <- "/Users/jiazhouchen/Box Sync"
@@ -12,7 +12,7 @@ boxidir<-findbox()
 #or specify box directory there:
 #boxidir<-''
 #####
-
+setwd('~/code/bandit_scripts/R')
 
 pseudosub<-lapply(c(0,2,4),function(x) {
   xz<-read.csv(paste0('noise0.',x,'.csv'))
@@ -155,7 +155,7 @@ library(dplyr)
 bdf$noisy <- scale(bdf$muPhi)>0 
 bdf$noisy <- bdf$noisy[,1]
 bdf = bdf %>% as_tibble %>% arrange(ID, Trial)
-bdf$reinf <- bdf$correct_incorrect==1
+bdf$reinf <- as.factor(bdf$correct_incorrect==1)
 bdf$NOISE <- as.factor(bdf$NOISE)
 bdf = bdf %>% arrange(ID, Trial) %>% group_by(ID) %>% 
   mutate(
@@ -164,7 +164,7 @@ bdf = bdf %>% arrange(ID, Trial) %>% group_by(ID) %>%
     choice_num_lead = lead(choice_numeric )
   ) %>% ungroup()
 
-bdf$stay <- bdf$choice_numeric == bdf$choice_num_lead
+bdf$stay <- as.factor(bdf$choice_numeric == bdf$choice_num_lead)
 bdf = bdf %>% group_by(ID) %>%
   mutate(stay_lag = lag(stay )) %>% ungroup()
 bdf$stay <- as.factor(bdf$stay)
@@ -175,6 +175,9 @@ bdf$trial_scaled <- bdf$trial_scaled[,1]
 
 
 bdf$NOISE<-plyr::mapvalues(bdf$NOISE,c(0,0.2,0.4),c("No Noise","20% Noise","40% Noise"))
+
+bdf$newID <- interaction(bdf$ID,bdf$NOISE)
+
 joint_reshape$NOISE<-plyr::mapvalues(joint_reshape$NOISE,c(0,0.2,0.4),c("No Noise","20% Noise","40% Noise"))
 
 write.csv(bdf,'NOISE_LONG_bandit_vba_pseudosub_w_actual_recovered_value.csv')
@@ -197,12 +200,12 @@ stop("Here we done with preproc")
 m1 <- lm(data=joint_reshape,formula = muPhi.pseudo ~ muPhi.original * muTheta_1.original * muTheta_2.original * muTheta_3.original * NOISE)
 summary(m1)
 
-summary(lm(data = joint_reshape[joint_reshape$NOISE=="No Noise",],formula = muTheta_1.pseudo ~ muTheta_1.original))
-summary(lm(data = joint_reshape[joint_reshape$NOISE=="20% Noise",],formula = muTheta_1.pseudo ~ muTheta_1.original))
-summary(lm(data = joint_reshape[joint_reshape$NOISE=="40% Noise",],formula = muTheta_1.pseudo ~ muTheta_1.original))
+summary(lm(data = joint_reshape[joint_reshape$NOISE=="No Noise",],formula = muPhi.pseudo ~ muPhi.original))
+summary(lm(data = joint_reshape[joint_reshape$NOISE=="20% Noise",],formula = muPhi.pseudo ~ muPhi.original))
+summary(lm(data = joint_reshape[joint_reshape$NOISE=="40% Noise",],formula = muPhi.pseudo ~ muPhi.original))
 
 ##############################
-
+library(lme4)
 
 mr0 <-   glmer(
   stay ~  trial_scaled + stay_lag + reinf +  
@@ -214,24 +217,47 @@ summary(mr0)
 car::Anova(mr0, type = 'III')
 
 
-
-mr1 <-   glmer(
-  stay ~  trial_scaled + stay_lag + reinf  * scale(muPhi)  +  
+# recover 
+mr1_0 <-   glmer(
+  stay ~  reinf   +  
     (1 | ID),
   family = binomial(),
-  data = bdf,
+  data = bdf[bdf$NOISE=='No Noise',],
   glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
-summary(mr1)
+summary(mr1_0)
 car::Anova(mr1, type = 'III')
 
-mr1a <-   glmer(
-  stay ~  trial_scaled + stay_lag + reinf  * scale(muPhi) * noise  +  
+mr1_02 <-   glmer(
+  stay ~  reinf   +  
     (1 | ID),
+  family = binomial(),
+  data = bdf[bdf$NOISE=='20% Noise',],
+  glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+summary(mr1_02)
+
+mr1_04 <-   glmer(
+  stay ~  reinf   +  
+    (1 | ID),
+  family = binomial(),
+  data = bdf[bdf$NOISE=='40% Noise',],
+  glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+summary(mr1_04)
+
+
+mr1a <-   glmer(
+  stay ~  reinf * NOISE  +  
+    (1 | newID),
   family = binomial(),
   data = bdf,
   glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
 summary(mr1a)
 car::Anova(mr1a, type = 'III')
+
+library(effects)
+plot(allEffects(mr1a))
+
+library(emmeans)
+plot(emmeans(mr1a,"reinf", by = "NOISE"), horiz = F)
 
 mr2 <-   glmer(
   stay ~  trial_scaled +  reinf  * noisy  +  
@@ -269,3 +295,16 @@ ggplot(joint_reshape,aes(muPhi.original,muPhi.pseudo)) + geom_point() + facet_wr
 #ggplot(joint_reshape,aes(muTheta_3.original,muTheta_3.pseudo)) + geom_point() + facet_wrap(~NOISE) + geom_abline(slope = 1, intercept = 0)
 ggplot(bdf,aes(value_max_actual,value_max_recover)) + geom_point() + facet_wrap(~NOISE) + geom_abline(slope = 1, intercept = 0) + xlab("Actaul Value (muX)") + ylab("Recovered Value (muX')")
 ggplot(bdf,aes(PE_actual,PE_recover)) + geom_point() + facet_wrap(~NOISE) + geom_abline(slope = 1, intercept = 0) + xlab("Actual Prediction Error (PE)") + ylab("Recovered Prediction Error (PE')")
+
+# sanity checks to deal with low z-stats for the interaction between muPhi and last reward
+
+# make sure we are using the true original muPhi
+
+test <- merge(joint_reshape[joint_reshape$NOISE=='No Noise',],cleanorg, by = "ID")
+cor(test$muPhi.original,test$muPhi)
+
+# audit bdf
+# check values signals across noise levels
+
+
+
