@@ -61,7 +61,7 @@ for xj = 1:length(posterior_sub)
         bx.stim_ACC=decisions(2,:)';
         bx.id=id;
         bx.noise=injectNoise;
-        foldername = fullfile(datadir,'vba_pseudosub','data_unbound',modelname,num2str(injectNoise));
+        foldername = fullfile(datadir,'vba_pseudosub','data_bound',modelname,num2str(injectNoise));
         mkdir(foldername);
         file_str = fullfile(foldername,sprintf('vba_%s_id_%d_runt_%d_noise_%s_output.mat',char(modelname),id,xk,num2str(injectNoise)));
         save(file_str, 'bx','gxs','values','decisions','noises')
@@ -114,11 +114,17 @@ for y = 1:parameters.numtrials
     sd = injectNoise;
     noise = sd.*randn(3,1);
     noise(4) = 0;
-    if y>1
+    
+    if ~y==1
     pos=decisions(1,y-1);
-    value(pos)=value(pos)+noise(pos);
+    
+    else 
+    pos=1
     end
+    pos=p_decsion(1);
     noises(:,y)=noise;
+    
+    value(pos)=value(pos)+noise(pos);
     %Update gx with choice;
     gxi=func_obv(value,beta,decision,parameters.inG);
     %Now we make a decision and see if we get enforeced;
@@ -134,12 +140,12 @@ for y = 1:parameters.numtrials
     
     %Now we do a evolution!
     fx = func_evo(value,theta,decision,parameters.inF);
-    %if ~isempty(find(fx > 1,1))
-    %    fx(fx > 1)=1;
-    %end
-    %if ~isempty(find(fx < 0,1))
-    %    fx(fx < 0)=0;
-    %end
+    if ~isempty(find(fx > 1,1))
+        fx(fx > 1)=1;
+    end
+    if ~isempty(find(fx < 0,1))
+        fx(fx < 0)=0;
+    end
     values(:,y+1)=fx;
 end
 

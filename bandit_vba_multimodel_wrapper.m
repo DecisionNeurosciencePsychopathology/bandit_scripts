@@ -13,7 +13,7 @@ end
 %Run MFX instead of ssub?
 run_MFX=1;
 run_withPseudoSub=1;
-injectNoise = 0.0;
+injectNoise = 0.4;
 %Loading in the subjects that still need processed
 % load('fMRI_ids_to_run_vba_on.mat')
 
@@ -96,7 +96,7 @@ for m = 1:length(models)
         %    parameterization.wsls_soft = 0;
     end
     if run_withPseudoSub
-        datadir=fullfile(rootdir,'vba_pseudosub','data',char(model),num2str(injectNoise));
+        datadir=fullfile(rootdir,'vba_pseudosub','data_unbound',char(model),num2str(injectNoise));
         dirs=dir(datadir);
         run_MFX=1;
         parameterization.runPseudo=1;

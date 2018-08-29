@@ -1,8 +1,8 @@
 
 
-for injectNoise = [0 0.1 0.2 0.4]
+for injectNoise = [0 0.2 0.4]
 num2str(injectNoise);
-load(sprintf('/Users/jiazhouchen/Box Sync/skinner/data/eprime/bandit/vba_pseudosub/data/2lr_decay/%s/vba_MFX_output/bandit_vba_MFX_output_2lr_decay.mat',num2str(injectNoise)))
+load(sprintf('/Users/jiazhouchen/Box Sync/skinner/data/eprime/bandit/vba_pseudosub/data_unbound/2lr_decay/%s/vba_MFX_output/bandit_vba_MFX_output_2lr_decay.mat',num2str(injectNoise)))
 for xj = 1:length(posterior_sub)
     muTheta_1(xj)=posterior_sub{xj}.muTheta(1);
     muTheta_2(xj)=posterior_sub{xj}.muTheta(2);
