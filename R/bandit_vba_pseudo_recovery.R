@@ -128,9 +128,9 @@ return(alldata)
 }
 
 alldata<-list(
-zeronoise=getprocdata(file.path(boxidir,'skinner','data','eprime','bandit','vba_pseudosub','data','2lr_decay','0','csvoutput')),
-onenoise=getprocdata(file.path(boxidir,'skinner','data','eprime','bandit','vba_pseudosub','data','2lr_decay','0.2','csvoutput')),
-twonoise=getprocdata(file.path(boxidir,'skinner','data','eprime','bandit','vba_pseudosub','data','2lr_decay','0.4','csvoutput'))
+zeronoise=getprocdata(file.path(boxidir,'skinner','data','eprime','bandit','vba_pseudosub','data_unbound','2lr_decay','0','csvoutput')),
+onenoise=getprocdata(file.path(boxidir,'skinner','data','eprime','bandit','vba_pseudosub','data_unbound','2lr_decay','0.2','csvoutput')),
+twonoise=getprocdata(file.path(boxidir,'skinner','data','eprime','bandit','vba_pseudosub','data_unbound','2lr_decay','0.4','csvoutput'))
 )
 adata<-lapply(alldata,function(xk) {
 do.call(rbind,lapply(xk,function(x){
@@ -150,35 +150,34 @@ bdf<-alldata_com_w_para
 library(tidyr)
 library(tibble)
 library(dplyr)
-
+library(ggplot2)
 # classify some subjects as noisy
 bdf$noisy <- scale(bdf$muPhi)>0 
 bdf$noisy <- bdf$noisy[,1]
 bdf = bdf %>% as_tibble %>% arrange(ID, Trial)
 bdf$reinf <- as.factor(bdf$correct_incorrect==1)
 bdf$NOISE <- as.factor(bdf$NOISE)
-bdf = bdf %>% arrange(ID, Trial) %>% group_by(ID) %>% 
+bdf$newID <- interaction(bdf$ID,bdf$NOISE)
+bdf = bdf %>% arrange(newID, Trial) %>% group_by(newID) %>% 
   mutate(
     reinf_lag = lag(reinf ),
     choice_num_lag = lag(choice_numeric ),
     choice_num_lead = lead(choice_numeric )
   ) %>% ungroup()
 
-bdf$stay <- as.factor(bdf$choice_numeric == bdf$choice_num_lead)
-bdf = bdf %>% group_by(ID) %>%
-  mutate(stay_lag = lag(stay )) %>% ungroup()
-bdf$stay <- as.factor(bdf$stay)
-bdf$stay_lag <- as.factor(bdf$stay_lag)
+bdf = bdf %>% group_by(newID) %>%
+  mutate(stay = as.factor(choice_numeric == choice_num_lead),
+    stay_lag = lag(stay )
+  ) %>% ungroup()
 
 bdf$trial_scaled <- scale(bdf$Trial)
 bdf$trial_scaled <- bdf$trial_scaled[,1]
 
 
-bdf$NOISE<-plyr::mapvalues(bdf$NOISE,c(0,0.2,0.4),c("No Noise","20% Noise","40% Noise"))
+bdf$NOISE<-plyr::mapvalues(bdf$NOISE,c(0,0.2,0.4),c("sigma(noise)=0","sigma(noise)=0.2","sigma(noise)=0.4"))
 
-bdf$newID <- interaction(bdf$ID,bdf$NOISE)
 
-joint_reshape$NOISE<-plyr::mapvalues(joint_reshape$NOISE,c(0,0.2,0.4),c("No Noise","20% Noise","40% Noise"))
+joint_reshape$NOISE<-plyr::mapvalues(joint_reshape$NOISE,c(0,0.2,0.4),c("sigma(noise)=0","sigma(noise)=0.2","sigma(noise)=0.4"))
 
 write.csv(bdf,'NOISE_LONG_bandit_vba_pseudosub_w_actual_recovered_value.csv')
 wdf<-reshape(data = bdf,timevar = 'NOISE',direction = 'wide',idvar = c('ID','Trial'),sep = "_")
@@ -200,16 +199,16 @@ stop("Here we done with preproc")
 m1 <- lm(data=joint_reshape,formula = muPhi.pseudo ~ muPhi.original * muTheta_1.original * muTheta_2.original * muTheta_3.original * NOISE)
 summary(m1)
 
-summary(lm(data = joint_reshape[joint_reshape$NOISE=="No Noise",],formula = muPhi.pseudo ~ muPhi.original))
-summary(lm(data = joint_reshape[joint_reshape$NOISE=="20% Noise",],formula = muPhi.pseudo ~ muPhi.original))
-summary(lm(data = joint_reshape[joint_reshape$NOISE=="40% Noise",],formula = muPhi.pseudo ~ muPhi.original))
+summary(m1 <- lm(data = joint_reshape[joint_reshape$NOISE=="sigma(noise)=0",],formula = muPhi.pseudo ~ muPhi.original))
+summary(m2 <- lm(data = joint_reshape[joint_reshape$NOISE=="sigma(noise)=0.2",],formula = muPhi.pseudo ~ muPhi.original))
+summary(m3 <- lm(data = joint_reshape[joint_reshape$NOISE=="sigma(noise)=0.4",],formula = muPhi.pseudo ~ muPhi.original))
 
 ##############################
 library(lme4)
 
 mr0 <-   glmer(
   stay ~  trial_scaled + stay_lag + reinf +  
-    (1 | ID),
+    (1 | newID),
   family = binomial(),
   data = bdf,
   glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
@@ -218,40 +217,66 @@ car::Anova(mr0, type = 'III')
 
 
 # recover 
-mr1_0 <-   glmer(
-  stay ~  reinf   +  
-    (1 | ID),
+summary(mr1_0 <-   glmer(
+  stay ~  reinf * muPhi    +  
+    (1 | newID),
   family = binomial(),
-  data = bdf[bdf$NOISE=='No Noise',],
-  glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
-summary(mr1_0)
+  data = bdf[bdf$NOISE=='sigma(noise)=0',],
+  glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000))))
 car::Anova(mr1, type = 'III')
 
-mr1_02 <-   glmer(
-  stay ~  reinf   +  
-    (1 | ID),
+summary(mr1_02 <-   glmer(
+  stay ~  reinf * muPhi    +  
+    (1 | newID),
   family = binomial(),
-  data = bdf[bdf$NOISE=='20% Noise',],
-  glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+  data = bdf[bdf$NOISE=='sigma(noise)=0.2',],
+  glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000))))
 summary(mr1_02)
 
-mr1_04 <-   glmer(
-  stay ~  reinf   +  
-    (1 | ID),
+summary(mr1_04 <-   glmer(
+  stay ~  reinf * muPhi    +  
+    (1 | newID),
   family = binomial(),
-  data = bdf[bdf$NOISE=='40% Noise',],
-  glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
+  data = bdf[bdf$NOISE=='sigma(noise)=0.4',],
+  glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000))))
 summary(mr1_04)
 
+anova(mr1_0,mr1_02,mr1_04)
 
-mr1a <-   glmer(
-  stay ~  reinf * NOISE  +  
+summary(mr_all <-   glmer(
+  stay ~  reinf * muPhi * NOISE  +  
     (1 | newID),
   family = binomial(),
   data = bdf,
-  glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000)))
-summary(mr1a)
+  glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 100000))))
 car::Anova(mr1a, type = 'III')
+
+# plot modeling results
+
+library(sjPlot)
+library(sjlabelled)
+library(sjmisc)
+library(ggpubr)
+theme_set(theme_sjplot())
+
+stargazer(m1,m2,m3,  type="html", out="mu_recovery.htm", digits = 2,single.row=TRUE,omit.stat = c("bic","adj.rsq", "f", "ser"),
+          column.labels = c("Sigma(noise) = 0", "Sigma(noise) = 0.2", "Sigma(noise) = 0.4"),
+          star.char = c("+", "*", "**", "***"),
+          star.cutoffs = c(0.1, 0.05, 0.01, 0.001), report = "vt", 
+          notes = c("+ p<0.1; * p<0.05; ** p<0.01; *** p<0.001"), 
+          notes.append = F)
+
+stargazer(mr1_0,mr1_02,mr1_04,  type="html", out="mlm_mu_recovery.htm", digits = 2,single.row=TRUE,omit.stat = c("bic", "aic"),
+          column.labels = c("Sigma(noise) = 0", "Sigma(noise) = 0.2", "Sigma(noise) = 0.4"),
+          star.char = c("+", "*", "**", "***"),
+          star.cutoffs = c(0.1, 0.05, 0.01, 0.001),report = "vt", 
+          notes = c("+ p<0.1; * p<0.05; ** p<0.01; *** p<0.001"), 
+          notes.append = F)
+
+stargazer(mr1_0,mr1_02,mr1_04)
+stargazer(m1,m2,m3)
+
+
 
 library(effects)
 plot(allEffects(mr1a))
@@ -268,41 +293,51 @@ mr2 <-   glmer(
 summary(mr2)
 car::Anova(mr2, type = 'III')
 
-summary(lmer(data = bdf,formula = ))
 
 # look at beta recovery by level of noise
 
-summary(lm(data = joint_reshape[joint_reshape$NOISE=='No Noise',],formula = muPhi.pseudo ~ muPhi.original))
+summary(lm(data = joint_reshape[joint_reshape$NOISE=='sigma(noise)=0',],formula = muPhi.pseudo ~ muPhi.original))
 #summary(lm(data = joint_reshape[joint_reshape$NOISE=='0.1',],formula = muPhi.pseudo ~ muPhi.original))
-summary(lm(data = joint_reshape[joint_reshape$NOISE=="20% Noise",],formula = muPhi.pseudo ~ muPhi.original))
-summary(lm(data = joint_reshape[joint_reshape$NOISE=="40% Noise",],formula = muPhi.pseudo ~ muPhi.original))
+summary(lm(data = joint_reshape[joint_reshape$NOISE=="sigma(noise)=0.2",],formula = muPhi.pseudo ~ muPhi.original))
+summary(lm(data = joint_reshape[joint_reshape$NOISE=="sigma(noise)=0.4",],formula = muPhi.pseudo ~ muPhi.original))
 
 
-summary(vm1 <- lme4::lmer(value_max_actual ~ value_max_recover + (1|ID), bdf[bdf$NOISE=='No Noise',]))
-summary(vm0 <- lm(value_max_actual ~ value_max_recover, bdf[bdf$NOISE=='No Noise',]))
+summary(vm1 <- lme4::lmer(value_max_actual ~ value_max_recover + (1|ID), bdf[bdf$NOISE=='sigma(noise)=0',]))
+summary(vm0 <- lm(value_max_actual ~ value_max_recover, bdf[bdf$NOISE=='sigma(noise)=0',]))
 
-summary(vm1 <- lme4::lmer(value_max_actual ~ value_max_recover + (1|ID), bdf[bdf$NOISE=="20% Noise",]))
-summary(vm0 <- lm(value_max_actual ~ value_max_recover, bdf[bdf$NOISE=="20% Noise",]))
+summary(vm1 <- lme4::lmer(value_max_actual ~ value_max_recover + (1|ID), bdf[bdf$NOISE=="sigma(noise)=0.2",]))
+summary(vm0 <- lm(value_max_actual ~ value_max_recover, bdf[bdf$NOISE=="sigma(noise)=0.2",]))
 
-summary(vm1 <- lme4::lmer(value_max_actual ~ value_max_recover + (1|ID), bdf[bdf$NOISE=="40% Noise",]))
-summary(vm0 <- lm(value_max_actual ~ value_max_recover, bdf[bdf$NOISE=="40% Noise",]))
+summary(vm1 <- lme4::lmer(value_max_actual ~ value_max_recover + (1|ID), bdf[bdf$NOISE=="sigma(noise)=0.4",]))
+summary(vm0 <- lm(value_max_actual ~ value_max_recover, bdf[bdf$NOISE=="sigma(noise)=0.4",]))
 
 
 
+
+setwd('~/Box Sync/skinner/projects_analyses/Project Bandit/figs/')
 #ggplot(joint_reshape,aes(NOISE,muPhi.pseudo)) + geom_boxplot()
 #ggplot(joint_reshape,aes(muPhi.original,muPhi.pseudo)) + geom_point() + facet_wrap(~NOISE) + geom_abline(slope = 1, intercept = 0)
-ggplot(joint_reshape,aes(muPhi.original,muPhi.pseudo)) + geom_point() + facet_wrap(~NOISE) + geom_abline(slope = 1, intercept = 0)+ xlab("Original Temperature") + ylab("Recovered Temperature")
+names(joint_reshape)[11] <- name
+  p <- ggplot(joint_reshape,aes(muPhi.original,muPhi.pseudo)) + geom_point() + facet_wrap(~`sigma[noise]`) + geom_abline(slope = 1, intercept = 0)+ xlab("Original Temperature") + ylab("Recovered Temperature")
+ggsave("mu_recovery.pdf", p, device = "pdf", scale = .4)
 #ggplot(joint_reshape,aes(muTheta_3.original,muTheta_3.pseudo)) + geom_point() + facet_wrap(~NOISE) + geom_abline(slope = 1, intercept = 0)
 ggplot(bdf,aes(value_max_actual,value_max_recover)) + geom_point() + facet_wrap(~NOISE) + geom_abline(slope = 1, intercept = 0) + xlab("Actaul Value (muX)") + ylab("Recovered Value (muX')")
-ggplot(bdf,aes(PE_actual,PE_recover)) + geom_point() + facet_wrap(~NOISE) + geom_abline(slope = 1, intercept = 0) + xlab("Actual Prediction Error (PE)") + ylab("Recovered Prediction Error (PE')")
+ggplot(bdf,aes(PE_actual,PE_recover)) + geom_smooth() + facet_wrap(~NOISE)  + xlab("Actual Prediction Error (PE)") + ylab("Recovered Prediction Error (PE')")
 
 # sanity checks to deal with low z-stats for the interaction between muPhi and last reward
 
-# make sure we are using the true original muPhi
+# fig s1 -- MLM vs RL for estimating individual differences
 
-test <- merge(joint_reshape[joint_reshape$NOISE=='No Noise',],cleanorg, by = "ID")
+test <- merge(joint_reshape[joint_reshape$NOISE=='sigma(noise)=0',],cleanorg, by = "ID")
 cor(test$muPhi.original,test$muPhi)
-
+trl <- c(23.87,18.01, 12.35)
+tmlm <- c(22.93,18.67,13.57)
+df <- as.data.frame(c(trl,tmlm),col.names = "t")
+df$t <- df$`c(trl, tmlm)`
+df$sigma_noise <- c(0,0.2,0.4,0,0.2,0.4)
+df$method <- c("RL","RL","RL","MLM","MLM","MLM")
+p <- ggplot(df,aes(sigma_noise,t, lty = method)) + geom_point() + geom_line() + xlab(expression(sigma[noise])) + ylab("t-statistic")
+ggsave("figs1_t.pdf",p,scale = .3)
 # audit bdf
 # check values signals across noise levels
 

@@ -551,5 +551,27 @@ cor.test(rrt,rewBYstay)
 cor.test(pert,rewBYstay)
 cor.test(vrt,rewBYstay)
 
+# revisions -- signed PE -- reward * PE * group
+
+s11_rt_signed <- lme4::lmer(1000/(RT) ~ I(1000/(RT_lag)) + scale(Trial) + stay_lag  + reinf_lag + scale(v_ch_diff) +
+                       scale(abs(PE_chosen_vba_lag)) * reinf_lag * Group + 
+                       reinf_lag * Group +
+                       scale(v_max_lag_mfx)* Group + 
+                       (1 | ID),
+                     data = rdf_censored)
+s12_rt_signed <- update(s11_rt_signed, data = sdf_censored)
+s22_rt_signed <- update(s11_rt_signed, . ~ . + stake_lag, data = gdf_censored)
+stargazer(s11_rt_signed, s12_rt_signed, s22_rt_signed,  type="html", out="signed_PE_inv_rt.htm", digits = 3,single.row=TRUE,omit.stat = "bic",
+          column.labels = c("Study 1, sample 1", "Study 1, sample 2", "Study 2, sample 2"),
+          star.char = c("+", "*", "**", "***"),
+          star.cutoffs = c(0.1, 0.05, 0.01, 0.001),
+          notes = c("+ p<0.1; * p<0.05; ** p<0.01; *** p<0.001"), 
+          notes.append = F)
+
+vif.lme(s11_rt_signed)
+vif.lme(s12_rt_signed)
+vif.lme(s22_rt_signed)
+anova(s11_rt,s11_rt_signed)
+
 
 save(list = ls(all.names = TRUE), file = "bandit2rt.RData")
